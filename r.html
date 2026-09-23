@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Vehicle Station Recommendation</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            font-family: Arial, sans-serif;
+            background-color: #eef3f7;
+            color: #1f2933;
+        }
+
+        .header {
+            background-color: #1769aa;
+            color: white;
+            padding: 25px;
+            text-align: center;
+        }
+
+        .header h1 {
+            margin: 0 0 10px;
+        }
+
+        .header p {
+            margin: 0;
+        }
+
+        .container {
+            width: 90%;
+            max-width: 850px;
+            margin: 30px auto;
+        }
+
+        .card {
+            background-color: white;
+            padding: 25px;
+            margin-bottom: 20px;
+            border-radius: 10px;
+            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.12);
+        }
+
+        .card h2 {
+            margin-top: 0;
+            color: #1769aa;
+        }
+
+        .form-row {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 18px;
+        }
+
+        .form-group {
+            flex: 1;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 7px;
+            font-weight: bold;
+        }
+
+        input,
+        select {
+            width: 100%;
+            padding: 11px;
+            border: 1px solid #b8c2cc;
+            border-radius: 6px;
+            font-size: 15px;
+        }
+
+        input:focus,
+        select:focus {
+            border-color: #1769aa;
+            outline: none;
+        }
+
+        .button-area {
+            text-align: center;
+            margin-top: 25px;
+        }
+
+        button {
+            background-color: #1769aa;
+            color: white;
+            border: none;
+            padding: 13px 28px;
+            border-radius: 6px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background-color: #0e4f82;
+        }
+
+        .result-box {
+            background-color: #f1f8ff;
+            border-left: 5px solid #1769aa;
+            padding: 18px;
+            line-height: 1.7;
+        }
+
+        .footer {
+            text-align: center;
+            padding: 20px;
+            color: #66727e;
+        }
+
+        @media (max-width: 650px) {
+            .form-row {
+                flex-direction: column;
+                gap: 0;
+            }
+
+            .container {
+                width: 94%;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <header class="header">
+        <h1>Vehicle Station Recommendation</h1>
+        <p>Find a reachable fuel or charging station</p>
+    </header>
+
+    <main class="container">
+
+        <section class="card">
+            <h2>Enter Vehicle Details</h2>
+
+            <form>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="vehicleType">Vehicle Type</label>
+
+                        <select id="vehicleType" name="vehicleType">
+                            <option value="">Select vehicle type</option>
+                            <option value="ev">Electric Vehicle</option>
+                            <option value="hybrid">Hybrid Vehicle</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="vehicleName">Vehicle Name</label>
+                        <input
+                            type="text"
+                            id="vehicleName"
+                            name="vehicleName"
+                            placeholder="Example: Hyundai Creta"
+                        >
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="fuelLevel">Available Fuel (%)</label>
+                        <input
+                            type="number"
+                            id="fuelLevel"
+                            name="fuelLevel"
+                            min="0"
+                            max="100"
+                            placeholder="Example: 25"
+                        >
+                    </div>
+
+                    <div class="form-group">
+                        <label for="batteryLevel">Battery Level (%)</label>
+                        <input
+                            type="number"
+                            id="batteryLevel"
+                            name="batteryLevel"
+                            min="0"
+                            max="100"
+                            placeholder="For EV or plug-in hybrid"
+                        >
+                    </div>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="tankCapacity">Tank Capacity</label>
+                        <input
+                            type="number"
+                            id="tankCapacity"
+                            name="tankCapacity"
+                            min="0"
+                            step="0.1"
+                            placeholder="Litres or kg"
+                        >
+                    </div>
+
+                    <div class="form-group">
+                        <label for="batteryCapacity">Battery Capacity</label>
+                        <input
+                            type="number"
+                            id="batteryCapacity"
+                            name="batteryCapacity"
+                            min="0"
+                            step="0.1"
+                            placeholder="kWh"
+                        >
+                    </div>
+                </div>
+
+                <!-- <div class="form-row">
+                    <div class="form-group">
+                        <label for="mileage">Mileage</label>
+                        <input
+                            type="number"
+                            id="mileage"
+                            name="mileage"
+                            min="0"
+                            step="0.1"
+                            placeholder="km/litre or km/kg"
+                        >
+                    </div> -->
+
+                    <div class="form-group">
+                        <label for="efficiency">EV Efficiency</label>
+                        <input
+                            type="number"
+                            id="efficiency"
+                            name="efficiency"
+                            min="0"
+                            step="0.1"
+                            placeholder="km/kWh"
+                        >
+                    </div>
+                </div>
+
+                <!-- <div class="form-row">
+                    <div class="form-group">
+                        <label for="latitude">Current Latitude</label>
+                        <input
+                            type="number"
+                            id="latitude"
+                            name="latitude"
+                            step="any"
+                            placeholder="Example: 19.0760"
+                        >
+                    </div>
+
+                    <div class="form-group">
+                        <label for="longitude">Current Longitude</label>
+                        <input
+                            type="number"
+                            id="longitude"
+                            name="longitude"
+                            step="any"
+                            placeholder="Example: 72.8777"
+                        >
+                    </div> -->
+                <!-- </div> -->
+
+                <div class="button-area">
+                    <button type="submit">Find Nearest Station</button>
+                </div>
+
+            </form>
+        </section>
+
+        <!-- <section class="card">
+            <h2>Recommendation Result</h2>
+
+            <div class="result-box">
+                <p><strong>Recommended Station:</strong> Not calculated yet</p>
+                <p><strong>Station Type:</strong> Not available</p>
+                <p><strong>Route Distance:</strong> Not available</p>
+                <p><strong>Safe Remaining Range:</strong> Not calculated yet</p>
+                <p><strong>Status:</strong> Enter vehicle details to continue</p>
+            </div>
+        </section> -->
+
+    </main>
+
+    <footer class="footer">
+        <p>Range-Aware Fuel and Charging Station Recommendation System</p>
+    </footer>
+
+</body>
+</html>

@@ -47,3 +47,5 @@ VALUES(
     50.00,
     14.00
 );
+
+SELECT * FROM charging_stations;

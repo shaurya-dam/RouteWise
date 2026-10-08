@@ -49,3 +49,8 @@ VALUES(
 );
 
 SELECT * FROM charging_stations;
+
+SELECT station_name, available_chargers
+FROM charging_stations
+WHERE available_chargers > 0;
+

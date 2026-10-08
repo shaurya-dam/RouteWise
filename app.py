@@ -1,16 +1,6 @@
 from flask import Flask, render_template, request
 
 app = Flask(__name__)
-
-
-# ============================================================
-# DEFAULT LOCATION
-# ============================================================
-
-DEFAULT_LATITUDE = 30.3165
-DEFAULT_LONGITUDE = 78.0322
-
-
 # ============================================================
 # SAFE RANGE
 # ============================================================
@@ -24,7 +14,7 @@ def safe_float(value):
 
 def calculate_safe_range(vehicle_type, form_data):
 
-    if vehicle_type in ["PETROL", "DIESEL"]:
+    if vehicle_type in ["PETROL"]:
 
         fuel_percent = safe_float(
             form_data.get("fuel_percent")
@@ -490,13 +480,13 @@ def index():
             ).upper()
         )
 
-        data = {
-            "latitude":
-                DEFAULT_LATITUDE,
+        # data = {
+        #     "latitude":
+        #         DEFAULT_LATITUDE,
 
-            "longitude":
-                DEFAULT_LONGITUDE
-        }
+        #     "longitude":
+        #         DEFAULT_LONGITUDE
+        # }
 
 
     # ========================================================
@@ -576,9 +566,9 @@ def index():
 
         range_status=range_status,
 
-        default_latitude=DEFAULT_LATITUDE,
+        # default_latitude=DEFAULT_LATITUDE,
 
-        default_longitude=DEFAULT_LONGITUDE
+        # default_longitude=DEFAULT_LONGITUDE
     )
 
 

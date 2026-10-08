@@ -1,0 +1,1228 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>
+        RouteWise | Vehicle Setup
+    </title>
+
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+
+</head>
+
+
+<body>
+
+
+
+<!-- =========================================================
+     HEADER
+========================================================== -->
+
+<header class="header">
+
+    <div class="header-inner">
+
+
+        <a
+            href="{{ url_for('index') }}"
+            class="logo"
+        >
+
+            <span class="logo-icon">
+                ↗
+            </span>
+
+            <span>
+
+                <strong>
+                    RouteWise
+                </strong>
+
+                <small>
+                    Smart route planning
+                </small>
+
+            </span>
+
+        </a>
+
+
+        <!-- <nav>
+
+            <a class="active" href="#">
+                Planner
+            </a>
+
+            <a href="#">
+                Stations
+            </a>
+
+            <a href="#">
+                Trip
+            </a>
+
+        </nav> -->
+
+
+        <div class="online">
+
+            <span></span>
+
+            Systems online
+
+        </div>
+
+
+    </div>
+
+</header>
+
+
+<!-- =========================================================
+     PAGE
+========================================================== -->
+
+<main class="page">
+
+
+    <!-- =====================================================
+         HERO
+    ====================================================== -->
+
+    <!-- <section class="hero">
+
+
+        <div>
+
+            <div class="eyebrow">
+                VEHICLE SETUP
+            </div>
+
+
+            <h1>
+                The right vehicle data.
+            </h1>
+
+
+            <p>
+                Tell RouteWise what you're driving and
+                we'll calculate the safe range from your
+                current fuel or battery level.
+            </p>
+
+        </div>
+
+
+        <div class="hero-meta">
+
+            Step 1 of 4
+
+        </div>
+
+    </section> -->
+
+
+    <!-- =====================================================
+         STEPPER
+    ====================================================== -->
+
+    <section class="stepper">
+
+
+        <div class="step active">
+
+            <div class="step-circle">
+                1
+            </div>
+
+            <span>
+                Vehicle
+            </span>
+
+        </div>
+
+
+        <div class="step-line"></div>
+
+
+        <div class="step">
+
+            <div class="step-circle">
+                2
+            </div>
+
+            <span>
+                Energy
+            </span>
+
+        </div>
+
+
+        <div class="step-line"></div>
+
+
+        <div class="step">
+
+            <div class="step-circle">
+                3
+            </div>
+
+            <span>
+                Location
+            </span>
+
+        </div>
+
+
+        <div class="step-line"></div>
+
+
+        <div class="step">
+
+            <div class="step-circle">
+                4
+            </div>
+
+            <span>
+                Result
+            </span>
+
+        </div>
+
+
+    </section>
+
+
+    <!-- =====================================================
+         WORKSPACE
+    ====================================================== -->
+
+    <section class="workspace">
+
+
+        <!-- =================================================
+             FORM
+        ================================================== -->
+
+        <section class="card form-card">
+
+
+            <div class="card-header">
+
+                <div>
+
+                    <h2>
+                        Vehicle information
+                    </h2>
+
+                    <p>
+                        Choose a vehicle to continue.
+                    </p>
+
+                </div>
+
+
+                <span class="required">
+                    * Required
+                </span>
+
+            </div>
+
+
+            <!-- =================================================
+                 VEHICLE CARDS
+            ================================================== -->
+
+            <div class="block">
+
+
+                <div class="block-label">
+                    Select vehicle type
+                </div>
+
+
+                <div class="vehicle-grid">
+
+
+                    <a
+                        href="{{ url_for(
+                            'index',
+                            vehicle_type='PETROL'
+                        ) }}"
+                        class="
+                            vehicle-card
+                            {% if selected_vehicle == 'PETROL' %}
+                                selected
+                            {% endif %}
+                        "
+                    >
+
+                        <div class="vehicle-card-top">
+
+                            <div class="vehicle-icon">
+                                ⛽
+                            </div>
+
+                            <div class="radio-dot"></div>
+
+                        </div>
+
+
+                        <div class="vehicle-name">
+                            Petrol
+                        </div>
+
+
+                        <div class="vehicle-description">
+                            Petrol powered
+                        </div>
+
+                    <!-- </a>
+
+
+                    <a
+                        href="{{ url_for(
+                            'index',
+                            vehicle_type='DIESEL'
+                        ) }}"
+                        class="
+                            vehicle-card
+                            {% if selected_vehicle == 'DIESEL' %}
+                                selected
+                            {% endif %}
+                        "
+                    > -->
+<!-- 
+                        <div class="vehicle-card-top">
+
+                            <div class="vehicle-icon">
+                                ◉
+                            </div>
+
+                            <div class="radio-dot"></div>
+
+                        </div>
+
+
+                        <div class="vehicle-name">
+                            Diesel
+                        </div>
+
+
+                        <div class="vehicle-description">
+                            Diesel powered
+                        </div> -->
+
+                    <!-- </a> -->
+
+
+                    <a
+                        href="{{ url_for(
+                            'index',
+                            vehicle_type='EV'
+                        ) }}"
+                        class="
+                            vehicle-card
+                            {% if selected_vehicle == 'EV' %}
+                                selected
+                            {% endif %}
+                        "
+                    >
+
+                        <div class="vehicle-card-top">
+
+                            <div class="vehicle-icon">
+                                ⚡
+                            </div>
+
+                            <div class="radio-dot"></div>
+
+                        </div>
+
+
+                        <div class="vehicle-name">
+                            Electric
+                        </div>
+
+
+                        <div class="vehicle-description">
+                            Battery powered
+                        </div>
+
+                    </a>
+
+
+                    <a
+                        href="{{ url_for(
+                            'index',
+                            vehicle_type='HYBRID'
+                        ) }}"
+                        class="
+                            vehicle-card
+                            {% if selected_vehicle == 'HYBRID' %}
+                                selected
+                            {% endif %}
+                        "
+                    >
+
+                        <div class="vehicle-card-top">
+
+                            <div class="vehicle-icon">
+                                ↻
+                            </div>
+
+                            <div class="radio-dot"></div>
+
+                        </div>
+
+
+                        <div class="vehicle-name">
+                            Hybrid
+                        </div>
+
+
+                        <div class="vehicle-description">
+                            Fuel + electric
+                        </div>
+
+                    </a>
+
+
+                </div>
+
+
+            </div>
+
+
+            <!-- =================================================
+                 DYNAMIC FORM
+            ================================================== -->
+
+            {% if selected_vehicle %}
+
+
+            <form
+                method="POST"
+                action="{{ url_for('index') }}"
+            >
+
+
+                <input
+                    type="hidden"
+                    name="vehicle_type"
+                    value="{{ selected_vehicle }}"
+                >
+
+
+                <!-- =================================================
+                     PETROL / DIESEL
+                ================================================== -->
+
+                {% if selected_vehicle == "PETROL" %}
+
+
+                <div class="block">
+
+
+                    <div class="block-heading">
+
+                        <div>
+
+                            <div class="block-label">
+                                Fuel details
+                            </div>
+
+                            <div class="helper">
+                                Current fuel information
+                            </div>
+
+                        </div>
+
+
+                        <span class="mini-tag">
+                            {{ selected_vehicle }}
+                        </span>
+
+                    </div>
+
+
+                    <div class="field-grid">
+
+
+                        <div class="field">
+
+                            <label for="fuel_percent">
+                                Fuel level
+                            </label>
+
+                            <div class="unit-input">
+
+                                <input
+                                    type="number"
+                                    id="fuel_percent"
+                                    name="fuel_percent"
+                                    min="0"
+                                    max="100"
+                                    step="0.1"
+                                    value="{{ data.get(
+                                        'fuel_percent',
+                                        ''
+                                    ) }}"
+                                    placeholder="40"
+                                    required
+                                >
+
+                                <span>
+                                    %
+                                </span>
+
+                            </div>
+
+                        </div>
+
+
+                        <div class="field">
+
+                            <label for="tank_capacity">
+                                Tank capacity
+                            </label>
+
+                            <div class="unit-input">
+
+                                <input
+                                    type="number"
+                                    id="tank_capacity"
+                                    name="tank_capacity"
+                                    min="1"
+                                    step="0.1"
+                                    value="{{ data.get(
+                                        'tank_capacity',
+                                        ''
+                                    ) }}"
+                                    placeholder="40"
+                                    required
+                                >
+
+                                <span>
+                                    L
+                                </span>
+
+                            </div>
+
+                        </div>
+
+
+                        <div class="field full">
+
+                            <label for="mileage">
+                                Mileage
+                            </label>
+
+                            <div class="unit-input">
+
+                                <input
+                                    type="number"
+                                    id="mileage"
+                                    name="mileage"
+                                    min="1"
+                                    step="0.1"
+                                    value="{{ data.get(
+                                        'mileage',
+                                        ''
+                                    ) }}"
+                                    placeholder="15"
+                                    required
+                                >
+
+                                <span>
+                                    km/L
+                                </span>
+
+                            </div>
+
+                        </div>
+
+
+                    </div>
+
+                </div>
+
+
+                {% endif %}
+
+
+                <!-- =================================================
+                     EV
+                ================================================== -->
+
+                {% if selected_vehicle == "EV" %}
+
+
+                <div class="block">
+
+
+                    <div class="block-heading">
+
+                        <div>
+
+                            <div class="block-label">
+                                Battery details
+                            </div>
+
+                            <div class="helper">
+                                Current battery information
+                            </div>
+
+                        </div>
+
+
+                        <span class="mini-tag green">
+                            ELECTRIC
+                        </span>
+
+                    </div>
+
+
+                    <div class="field-grid">
+
+
+                        <div class="field">
+
+                            <label for="battery_percent">
+                                Battery level
+                            </label>
+
+                            <div class="unit-input">
+
+                                <input
+                                    type="number"
+                                    id="battery_percent"
+                                    name="battery_percent"
+                                    min="0"
+                                    max="100"
+                                    step="0.1"
+                                    value="{{ data.get(
+                                        'battery_percent',
+                                        ''
+                                    ) }}"
+                                    placeholder="40"
+                                    required
+                                >
+
+                                <span>
+                                    %
+                                </span>
+
+                            </div>
+
+                        </div>
+
+
+                        <div class="field">
+
+                            <label for="battery_capacity">
+                                Battery capacity
+                            </label>
+
+                            <div class="unit-input">
+
+                                <input
+                                    type="number"
+                                    id="battery_capacity"
+                                    name="battery_capacity"
+                                    min="1"
+                                    step="0.1"
+                                    value="{{ data.get(
+                                        'battery_capacity',
+                                        ''
+                                    ) }}"
+                                    placeholder="40"
+                                    required
+                                >
+
+                                <span>
+                                    kWh
+                                </span>
+
+                            </div>
+
+                        </div>
+
+
+                        <div class="field">
+
+                            <label for="efficiency">
+                                Efficiency
+                            </label>
+
+                            <div class="unit-input">
+
+                                <input
+                                    type="number"
+                                    id="efficiency"
+                                    name="efficiency"
+                                    min="1"
+                                    step="0.1"
+                                    value="{{ data.get(
+                                        'efficiency',
+                                        ''
+                                    ) }}"
+                                    placeholder="6"
+                                    required
+                                >
+
+                                <span>
+                                    km/kWh
+                                </span>
+
+                            </div>
+
+                        </div>
+
+
+                        <div class="field">
+
+                            <label for="connector">
+                                Connector
+                            </label>
+
+                            <select
+                                id="connector"
+                                name="connector"
+                                required
+                            >
+
+                                <option value="">
+                                    Select
+                                </option>
+
+                                <option value="CCS2">
+                                    CCS2
+                                </option>
+
+                                <option value="TYPE2">
+                                    Type 2
+                                </option>
+
+                                <option value="CHADEMO">
+                                    CHAdeMO
+                                </option>
+
+                                <option value="TYPE1">
+                                    Type 1
+                                </option>
+
+                            </select>
+
+                        </div>
+
+
+                    </div>
+
+                </div>
+
+
+                {% endif %}
+
+
+                <!-- =================================================
+                     HYBRID
+                ================================================== -->
+
+                {% if selected_vehicle == "HYBRID" %}
+
+
+                <div class="block">
+
+
+                    <div class="block-heading">
+
+                        <div>
+
+                            <div class="block-label">
+                                Hybrid energy details
+                            </div>
+
+                            <div class="helper">
+                                Enter fuel and battery information
+                            </div>
+
+                        </div>
+
+
+                        <span class="mini-tag">
+                            HYBRID
+                        </span>
+
+                    </div>
+
+
+                    <div class="field-grid">
+
+
+                        <div class="field">
+
+                            <label for="fuel_percent">
+                                Fuel level
+                            </label>
+
+                            <div class="unit-input">
+
+                                <input
+                                    type="number"
+                                    id="fuel_percent"
+                                    name="fuel_percent"
+                                    min="0"
+                                    max="100"
+                                    step="0.1"
+                                    value="{{ data.get(
+                                        'fuel_percent',
+                                        ''
+                                    ) }}"
+                                    placeholder="40"
+                                    required
+                                >
+
+                                <span>
+                                    %
+                                </span>
+
+                            </div>
+
+                        </div>
+
+
+                        <div class="field">
+
+                            <label for="tank_capacity">
+                                Tank capacity
+                            </label>
+
+                            <div class="unit-input">
+
+                                <input
+                                    type="number"
+                                    id="tank_capacity"
+                                    name="tank_capacity"
+                                    min="1"
+                                    step="0.1"
+                                    value="{{ data.get(
+                                        'tank_capacity',
+                                        ''
+                                    ) }}"
+                                    placeholder="40"
+                                    required
+                                >
+
+                                <span>
+                                    L
+                                </span>
+
+                            </div>
+
+                        </div>
+
+
+                        <div class="field">
+
+                            <label for="mileage">
+                                Mileage
+                            </label>
+
+                            <div class="unit-input">
+
+                                <input
+                                    type="number"
+                                    id="mileage"
+                                    name="mileage"
+                                    min="1"
+                                    step="0.1"
+                                    value="{{ data.get(
+                                        'mileage',
+                                        ''
+                                    ) }}"
+                                    placeholder="18"
+                                    required
+                                >
+
+                                <span>
+                                    km/L
+                                </span>
+
+                            </div>
+
+                        </div>
+
+
+                        <div class="field">
+
+                            <label for="battery_percent">
+                                Battery level
+                            </label>
+
+                            <div class="unit-input">
+
+                                <input
+                                    type="number"
+                                    id="battery_percent"
+                                    name="battery_percent"
+                                    min="0"
+                                    max="100"
+                                    step="0.1"
+                                    value="{{ data.get(
+                                        'battery_percent',
+                                        ''
+                                    ) }}"
+                                    placeholder="60"
+                                    required
+                                >
+
+                                <span>
+                                    %
+                                </span>
+
+                            </div>
+
+                        </div>
+
+
+                    </div>
+
+                </div>
+
+
+                {% endif %}
+
+
+
+
+
+   <div class="block">
+
+    <div class="block-heading">
+
+        <div>
+            <div class="block-label">
+                Vehicle Model
+            </div>
+
+            <div class="helper">
+                Enter the model of your vehicle
+            </div>
+        </div>
+
+        <span class="mini-tag blue">
+            VEHICLE
+        </span>
+
+    </div>
+
+    <div class="vehicle-model-field">
+
+        <div class="vehicle-model-icon">
+            🚗
+        </div>
+
+        <div class="vehicle-model-content">
+
+            <div class="vehicle-model-title">
+                Vehicle Name
+            </div>
+
+            <div class="vehicle-model-description">
+                This helps RouteWise identify your vehicle
+            </div>
+
+            <input
+                type="text"
+                id="vehicle_model"
+                name="vehicle_model"
+                class="vehicle-model-input"
+                placeholder="e.g. Tata Nexon EV"
+                value="{{ data.get('vehicle_model', '') }}"
+                required
+            >
+
+        </div>
+
+    </div>
+
+</div>
+
+
+                <!-- =================================================
+                     LOCATION
+                ================================================== -->
+
+              
+<div class="block">
+
+    <div class="block-heading">
+
+        <div>
+            <div class="block-label">
+                Current Location
+            </div>
+
+            <div class="helper">
+                Choose how you want to set your location
+            </div>
+        </div>
+
+        <span class="mini-tag blue">
+            LOCATION
+        </span>
+
+    </div>
+
+
+    <div class="location-options">
+
+        <!-- CURRENT LOCATION -->
+
+        <div class="location-option" id="currentLocationOption">
+
+            <div class="location-option-icon">
+                ◎
+            </div>
+
+            <div class="location-option-content">
+
+                <div class="location-option-title">
+                    Use Current Location
+                </div>
+
+                <div class="location-option-description">
+                    Automatically detect your current location
+                </div>
+
+            </div>
+
+            <button
+                type="button"
+                id="locationBtn"
+                class="location-action">
+
+                Detect
+
+            </button>
+
+        </div>
+
+
+        <!-- MANUAL ADDRESS -->
+
+        <div class="location-option">
+
+            <div class="location-option-icon">
+                ⌖
+            </div>
+
+            <div class="location-option-content">
+
+                <div class="location-option-title">
+                    Enter Address
+                </div>
+
+                <div class="location-option-description">
+                    Search for a location manually
+                </div>
+
+                <input
+                    type="text"
+                    id="address"
+                    class="location-input"
+                    placeholder="Enter your address"
+                >
+
+            </div>
+
+            <button
+                type="button"
+                id="addressBtn"
+                class="location-action">
+
+                Search
+
+            </button>
+
+        </div>
+
+    </div>
+
+
+    <!-- LOCATION RESULT -->
+
+    <div class="location-result">
+
+        <div class="location-result-icon">
+            ✓
+        </div>
+
+        <div>
+
+            <div
+                id="locationName"
+                class="location-result-name">
+
+                Location not selected
+
+            </div>
+
+            <div
+                id="locationStatus"
+                class="helper">
+
+                Choose one of the options above.
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+    <!-- Hidden coordinates -->
+
+    <input
+        type="hidden"
+        id="latitude"
+        name="latitude"
+        value="{{ data.get('latitude', '') }}"
+    >
+
+    <input
+        type="hidden"
+        id="longitude"
+        name="longitude"
+        value="{{ data.get('longitude', '') }}"
+    >
+
+</div>
+
+                <!-- =================================================
+                     VALIDATION ERROR
+                ================================================== -->
+
+                {% if errors %}
+
+
+                <div class="error-box">
+
+                    <div class="error-title">
+                        Let's check your details
+                    </div>
+
+
+                    {% for error in errors %}
+
+                    <div class="error-row">
+                        <span>!</span>
+                        {{ error }}
+                    </div>
+
+                    {% endfor %}
+
+                </div>
+
+
+                {% endif %}
+
+
+                <!-- =================================================
+                     FORM FOOTER
+                ================================================== -->
+
+                <div class="form-actions">
+
+                    <div class="secure-note">
+
+                        <span>
+                            
+                        </span>
+
+
+                    </div>
+
+
+                    <button
+                        type="submit"
+                        class="primary-button"
+                    >
+
+                        next
+
+                        <span>
+                            →
+                        </span>
+
+                    </button>
+
+                </div>
+
+
+            </form>
+
+
+            {% else %}
+
+
+            <div class="select-state">
+
+                <div class="select-state-icon">
+                    +
+                </div>
+
+                <div>
+
+                    <strong>
+                        Select your vehicle type
+                    </strong>
+
+                    <p>
+                        Vehicle-specific fields will appear
+                        below the selection.
+                    </p>
+
+                </div>
+
+            </div>
+
+
+            {% endif %}
+
+
+        </section>
+
+
+      
+
+
+
+
+</main>
+
+
+<!-- =========================================================
+     FOOTER
+========================================================== -->
+
+<!-- <footer>
+
+    RouteWise · Smart route & station recommendation
+
+</footer> -->
+<script src="{{ url_for('static', filename='script.js') }}"></script>
+
+</body>
+
+</html>

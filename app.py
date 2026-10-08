@@ -383,64 +383,64 @@ def validate_data(vehicle_type, form_data):
     # LOCATION
     # --------------------------------------------------------
 
-    latitude = form_data.get(
-        "latitude",
-        ""
-    ).strip()
+    # latitude = form_data.get(
+    #     "latitude",
+    #     ""
+    # ).strip()
 
-    longitude = form_data.get(
-        "longitude",
-        ""
-    ).strip()
-
-
-    if not latitude:
-
-        errors.append(
-            "Latitude is required."
-        )
-
-    else:
-
-        lat = safe_float(latitude)
-
-        if lat is None:
-
-            errors.append(
-                "Latitude must be numeric."
-            )
-
-        elif lat < -90 or lat > 90:
-
-            errors.append(
-                "Latitude must be between -90 and 90."
-            )
+    # longitude = form_data.get(
+    #     "longitude",
+    #     ""
+    # ).strip()
 
 
-    if not longitude:
+    # if not latitude:
 
-        errors.append(
-            "Longitude is required."
-        )
+    #     errors.append(
+    #         "Latitude is required."
+    #     )
 
-    else:
+    # else:
 
-        lng = safe_float(longitude)
+    #     lat = safe_float(latitude)
 
-        if lng is None:
+    #     if lat is None:
 
-            errors.append(
-                "Longitude must be numeric."
-            )
+    #         errors.append(
+    #             "Latitude must be numeric."
+    #         )
 
-        elif lng < -180 or lng > 180:
+    #     elif lat < -90 or lat > 90:
 
-            errors.append(
-                "Longitude must be between -180 and 180."
-            )
+    #         errors.append(
+    #             "Latitude must be between -90 and 90."
+    #         )
 
 
-    return errors
+    # if not longitude:
+
+    #     errors.append(
+    #         "Longitude is required."
+    #     )
+
+    # else:
+
+    #     lng = safe_float(longitude)
+
+    #     if lng is None:
+
+    #         errors.append(
+    #             "Longitude must be numeric."
+    #         )
+
+    #     elif lng < -180 or lng > 180:
+
+    #         errors.append(
+    #             "Longitude must be between -180 and 180."
+    #         )
+
+
+    # return errors
 
 
 

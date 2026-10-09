@@ -4,6 +4,7 @@
 #include<queue>
 #include<fstream>
 #include<sstream>
+
 using namespace std;
 class Vehicle {
 protected:
@@ -99,5 +100,49 @@ public:
             cout << "ALERT: No stations reachable within " << current_range << " km!\n";
             return;
         }
+        int rank = 1;
+        while (!minHeap.empty() && rank <= top_n) {
+            Station best = minHeap.top();
+            minHeap.pop();
+            
+            cout << rank << ". " << best.name << " (" << best.type << ") | Dist: " << best.distance << " km";
+            if (best.type == "EV") cout << " | Speed: " << best.charging_speed << " kW";
+            cout << "\n";
+            rank++;
+        }
     }
 };
+int main(int argc, char* argv[]) {
+    if (argc != 4) {
+        cout << "Error! Usage: ./RouteWiseEngine <Type> <Max_Range> <Current_Percentage>\n";
+        return 1;
+    }
+
+    string vehicle_type = argv[1];
+    double max_range = stod(argv[2]);
+    double current_percent = stod(argv[3]);
+
+    Vehicle* myVehicle = nullptr;
+    
+    if (vehicle_type == "EV") {
+        myVehicle = new ElectricVehicle(max_range, current_percent);
+    } else if (vehicle_type == "Petrol" || vehicle_type == "Diesel") {
+        myVehicle = new FuelVehicle(max_range, current_percent);
+    } else if (vehicle_type == "Hybrid") {
+        myVehicle = new HybridVehicle(max_range, current_percent); // NEW OBJECT
+    } else {
+        cout << "Error: Unknown Vehicle Type!\n";
+        return 1;
+    }
+
+    double usable_range = myVehicle->calculateUsableRange();
+
+    cout << "Vehicle Type: " << vehicle_type << "\n";
+    cout << "Energy Level: " << current_percent << "% | Usable Range: " << usable_range << " km\n";
+
+    RouteWiseEngine engine;
+    engine.findBestStations("stations.txt", usable_range, vehicle_type, 3);
+
+    delete myVehicle;
+    return 0;
+}

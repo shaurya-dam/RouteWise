@@ -6,6 +6,7 @@
 #include<sstream>
 
 using namespace std;
+
 class Vehicle {
 protected:
     double max_range;
@@ -42,9 +43,10 @@ public:
         return (max_range * (current_percent / 100.0)) * 0.95; 
     }
 };
+
 struct Station {
     string name;
-    double dis;
+    double distance;
     string type;
     int charging_speed;
     double score;
@@ -112,6 +114,7 @@ public:
         }
     }
 };
+
 int main(int argc, char* argv[]) {
     if (argc != 4) {
         cout << "Error! Usage: ./RouteWiseEngine <Type> <Max_Range> <Current_Percentage>\n";
@@ -129,7 +132,7 @@ int main(int argc, char* argv[]) {
     } else if (vehicle_type == "Petrol" || vehicle_type == "Diesel") {
         myVehicle = new FuelVehicle(max_range, current_percent);
     } else if (vehicle_type == "Hybrid") {
-        myVehicle = new HybridVehicle(max_range, current_percent); // NEW OBJECT
+        myVehicle = new HybridVehicle(max_range, current_percent);
     } else {
         cout << "Error: Unknown Vehicle Type!\n";
         return 1;

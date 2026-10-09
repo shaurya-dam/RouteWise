@@ -1,6 +1,14 @@
 from flask import Flask, render_template, request
+from dotenv import load_dotenv
+import os
+import requests
+import mysql.connector
 
 app = Flask(__name__)
+
+load_dotenv()
+
+TOMTOM_API_KEY = os.getenv("TOMTOM_API_KEY")
 # ============================================================
 # SAFE RANGE
 # ============================================================
@@ -450,6 +458,25 @@ def validate_data(vehicle_type, form_data):
 # ============================================================
 # HOME
 # ============================================================
+
+@app.route("/test-tomtom")
+def test_tomtom():
+
+    url = "https://api.tomtom.com/search/2/search/EV%20charging.json"
+
+    params = {
+        "key": TOMTOM_API_KEY,
+        "lat": 30.3165,
+        "lon": 78.0322,
+        "radius": 5000
+    }
+
+    response = requests.get(url, params=params)
+
+    print("TomTom Status:", response.status_code)
+    print("TomTom Response:", response.text)
+
+    return response.text
 
 @app.route("/", methods=["GET", "POST"])
 def index():

@@ -1,6 +1,6 @@
 #include<iostream>
 #include<string>
-
+using namespace std;
 class Vehicle {
 protected:
     double max_range;
@@ -37,3 +37,11 @@ public:
         return (max_range * (current_percent / 100.0)) * 0.95; 
     }
 };
+struct Station {
+    string name;
+    double dis;
+    string type;
+    int charging_speed;
+    double score;
+};
+

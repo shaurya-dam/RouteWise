@@ -1,64 +1,39 @@
 #include<iostream>
 #include<string>
-using namespace std;
-class Car{
+
+class Vehicle {
 protected:
-    string carType;
-    double range;
-    double fuelOrBatteryAmount;
-    double averageOfCar;
-    public:
-    Car(string type, double r, double amount, double avg){
-        carType=type;
-        range=r;
-        fuelOrBatteryAmount=amount;
-        averageOfCar=avg;
-    }
-};
-class Electric : public Car{
-    public:
-    Electric(double r, double batteryAmount, double avg) 
-        : Car("Electric", r, batteryAmount, avg) {}
-
-    void displayDetails() {
-        cout << "[EV Module] Type: " << carType 
-             << " | Total Range: " << range << " km"
-             << " | Battery Amount: " << fuelOrBatteryAmount << " kWh"
-             << " | Efficiency: " << averageOfCar << " km/kWh\n";
-    }
-};
-class Petrol : public Car{
-    Petrol(double r, double batteryAmount, double avg) : Car("Petrol",r,batteryAmount,avg){}
-    void displayDetails(){
-        cout << "[Petrol Module] Type" << carType
-             <<" | Total Range: " << range << " km"
-             << " | Fuel Amount: " << fuelOrBatteryAmount << " L"
-             << " | Mileage: " << averageOfCar << " km/L"<<endl;
-    }
-};
-class Hybrid : public Car{
-    private:
-    double electricPortionRange;
-    double fuelPortionRange;
-
+    double max_range;
+    double current_percent;
 public:
-    Hybrid(double r, double totalEnergy, double avg, double eRange, double fRange) 
-        : Car("Hybrid", r, totalEnergy, avg), electricPortionRange(eRange), fuelPortionRange(fRange) {}
+    Vehicle(double m_range, double c_percent) {
+        max_range = m_range;
+        current_percent = c_percent;
+    }
+    virtual double calculateUsableRange() = 0; 
+    virtual ~Vehicle() {}
+};
 
-    void displayDetails() {
-        cout << "[Hybrid Module] Type: " << carType 
-             << " | Total Range: " << range << " km"
-             << " | EV Range: " << electricPortionRange << " km"
-             << " | Fuel Range: " << fuelPortionRange << " km\n";
+class ElectricVehicle : public Vehicle {
+public:
+    ElectricVehicle(double m_range, double c_percent) : Vehicle(m_range, c_percent) {}
+    double calculateUsableRange() override {
+        return (max_range * (current_percent / 100.0)) * 0.85; 
     }
 };
-class Diesel : public Car{
-    public:
-    Diesel(double r, double batteryAmount, double avg) : Car("Diesel",r,batteryAmount,avg){}
-    void displayDetails(){
-        cout << "[Diesel Module] Type" << carType
-             <<" | Total Range: " << range << " km"
-             << " | Fuel Amount: " << fuelOrBatteryAmount << " L"
-             << " | Mileage: " << averageOfCar << " km/L"<<endl;
+
+class FuelVehicle : public Vehicle {
+public:
+    FuelVehicle(double m_range, double c_percent) : Vehicle(m_range, c_percent) {}
+    double calculateUsableRange() override {
+        return (max_range * (current_percent / 100.0));
+    }
+};
+
+class HybridVehicle : public Vehicle {
+public:
+    HybridVehicle(double m_range, double c_percent) : Vehicle(m_range, c_percent) {}
+    double calculateUsableRange() override {
+        return (max_range * (current_percent / 100.0)) * 0.95; 
     }
 };

@@ -22,6 +22,7 @@ INSERT INTO charging_stations(
     latitude,
     longitude,
     total_chargers,
+    available_chargers,
     charging_speed,
     price_per_kwh
 )

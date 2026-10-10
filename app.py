@@ -2,6 +2,7 @@ from flask import Flask, render_template, request
 from dotenv import load_dotenv
 import os
 import requests
+from db import get_available_charging_stations
 import mysql.connector
 
 app = Flask(__name__)
@@ -487,6 +488,8 @@ def index():
 
     errors = []
 
+    stations = []
+
     success = False
 
     safe_range = None
@@ -530,6 +533,13 @@ def index():
                 ""
             ).upper()
         )
+        if selected_vehicle == "EV":
+               try:
+                   stations = get_available_charging_stations()
+               except Exception:
+                   app.logger.exception("Unable to retrieve charging stations")
+                   errors.append("Unable to load charging stations.")
+                   success = False
 
 
         # ----------------------------------------------------
@@ -596,6 +606,7 @@ def index():
         # default_latitude=DEFAULT_LATITUDE,
 
         # default_longitude=DEFAULT_LONGITUDE
+        stations=stations
     )
 
 

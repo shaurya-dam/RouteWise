@@ -1,8 +1,8 @@
 from flask import Flask, render_template, request
 from dotenv import load_dotenv
 import os
-# import requests
-# import mysql.connector
+import requests
+import mysql.connector
 
 app = Flask(__name__)
 

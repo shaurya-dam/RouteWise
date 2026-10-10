@@ -276,6 +276,126 @@ def test_tomtom():
 # HOME
 # ============================================================
 
+
+@app.route("/test-fuel")
+def test_fuel():
+    url = "https://api.tomtom.com/search/2/categorySearch/gas station.json"
+
+    params = {
+        "key": TOMTOM_API_KEY,
+        "lat": 30.3165,
+        "lon": 78.0322,
+        "radius": 5000,
+        "limit": 10
+    }
+
+    response = requests.get(url, params=params, timeout=15)
+
+    print("TomTom Status:", response.status_code)
+
+    return response.text, response.status_code, {
+        "Content-Type": "application/json"
+    }
+
+
+@app.route("/fuel-stations")
+def fuel_stations():
+    url = "https://api.tomtom.com/search/2/categorySearch/gas%20station.json"
+
+    params = {
+        "key": TOMTOM_API_KEY,
+        "lat": 30.3165,
+        "lon": 78.0322,
+        "radius": 5000,
+        "limit": 10
+    }
+
+    try:
+        response = requests.get(url, params=params, timeout=20)
+        response.raise_for_status()
+        data = response.json()
+
+        stations = []
+
+        for item in data.get("results", []):
+            poi = item.get("poi", {})
+            address = item.get("address", {})
+            position = item.get("position", {})
+            name = poi.get("name")
+            station_address = address.get("freeformAddress")
+            latitude = safe_float(position.get("lat"))
+            longitude = safe_float(position.get("lon"))
+
+            if not name or not station_address:
+                continue
+
+            if latitude is None or longitude is None:
+                continue
+
+            if not (-90 <= latitude <= 90):
+                continue
+
+            if not (-180 <= longitude <= 180):
+                continue
+
+            stations.append({
+                "name": name,
+                "address": station_address,
+                "latitude": latitude,
+                "longitude": longitude
+            })
+
+        return {
+            "count": len(stations),
+            "stations": stations
+        }
+
+    except requests.exceptions.RequestException as error:
+        return {"error": str(error)}, 502
+
+
+
+@app.route("/charging-stations")
+def charging_stations():
+    url = "https://api.tomtom.com/search/2/search/EV%20charging.json"
+
+    params = {
+        "key": TOMTOM_API_KEY,
+        "lat": 30.3165,
+        "lon": 78.0322,
+        "radius": 5000,
+        "limit": 10
+    }
+
+    try:
+        response = requests.get(url, params=params, timeout=20)
+        response.raise_for_status()
+        data = response.json()
+
+        stations = []
+
+        for item in data.get("results", []):
+            poi = item.get("poi", {})
+            address = item.get("address", {})
+            position = item.get("position", {})
+
+            stations.append({
+                "name": poi.get("name"),
+                "address": address.get("freeformAddress"),
+                "latitude": position.get("lat"),
+                "longitude": position.get("lon")
+            })
+
+        return {
+            "count": len(stations),
+            "stations": stations
+        }
+
+    except requests.exceptions.RequestException as error:
+        return {"error": str(error)}, 502
+
+
+
 @app.route("/", methods=["GET", "POST"])
 def index():
 

@@ -1211,6 +1211,42 @@
 
 </main>
 
+<!-- AVAILABLE CHARGING STATIONS -->
+{% if stations %}
+<section class="block">
+    <div class="block-heading">
+        <div>
+            <div class="block-label">Available Charging Stations</div>
+            <div class="helper">Connected to RouteWise database</div>
+        </div>
+        <span class="mini-tag blue">STATIONS</span>
+    </div>
+
+    {% for station in stations %}
+    <div class="location-option">
+        <div class="location-option-content">
+            <div class="location-option-title">
+                {{ station.station_name }}
+            </div>
+
+            <div class="location-option-description">
+                {{ station.address }}, {{ station.city }}
+            </div>
+
+            <div class="helper">
+                Available chargers: {{ station.available_chargers }}
+                <br>
+                Charging speed: {{ station.charging_speed }} kW
+                <br>
+                Price: ₹{{ station.price_per_kwh }} per kWh
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</section>
+{% endif %}
+
+
 
 <!-- =========================================================
      FOOTER

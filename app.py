@@ -2,7 +2,7 @@ from flask import Flask, render_template, request
 from dotenv import load_dotenv
 import os
 import requests
-from db import get_available_charging_stations
+from db import get_available_charging_stations , save_vehicle_data
 import mysql.connector
 
 app = Flask(__name__)
@@ -154,7 +154,6 @@ def validate_data(vehicle_type, form_data):
 
     allowed_types = [
         "PETROL",
-        "DIESEL",
         "EV",
         "HYBRID"
     ]
@@ -598,6 +597,28 @@ def charging_stations():
         return {"error": str(error)}, 502
 
 
+@app.route("/db-charging-stations")
+def db_charging_stations():
+    try:
+        stations = get_available_charging_stations()
+
+        # Convert database values to JSON-compatible values
+        result = []
+        for station in stations:
+            result.append({
+                key: float(value) if hasattr(value, "as_tuple") else value
+                for key, value in station.items()
+            })
+
+        return {
+            "count": len(result),
+            "stations": result
+        }
+
+    except Exception:
+        app.logger.exception("Database station retrieval failed")
+        return {"error": "Unable to retrieve charging stations"}, 500
+
 
 @app.route("/", methods=["GET", "POST"])
 def index():
@@ -666,10 +687,28 @@ def index():
         # VALIDATE
         # ----------------------------------------------------
 
-        errors = validate_data(
-            selected_vehicle,
-            data
-        )
+        
+    if not errors:
+        safe_range = calculate_safe_range(selected_vehicle, data)
+
+        if safe_range is None:
+            errors.append("Unable to calculate safe range.")
+        else:
+            try:
+                save_vehicle_data(selected_vehicle, data)
+                success = True
+
+                if safe_range >= 80:
+                    range_status = "Normal"
+                elif safe_range >= 30:
+                    range_status = "Low"
+                else:
+                    range_status = "Critical"
+
+            except Exception:
+                app.logger.exception("Unable to save vehicle data")
+                errors.append("Range calculated, but vehicle data could not be saved.")
+
 
 
         # ----------------------------------------------------

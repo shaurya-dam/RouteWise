@@ -1,10 +1,9 @@
 
 from flask import Flask, render_template, request
 from dotenv import load_dotenv
-from db import get_available_charging_stations
+from db import get_available_charging_stations,save_vehicle_data
 import os
 import requests
-from db import get_available_charging_stations
 import mysql.connector
 
 app = Flask(__name__)
@@ -499,6 +498,8 @@ def index():
                 errors.append("Unable to calculate safe range.")
 
             else:
+                save_vehicle_data(selected_vehicle, data)
+                
                 success = True
 
                 if safe_range >= 80:

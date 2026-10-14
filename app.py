@@ -4,8 +4,8 @@ from dotenv import load_dotenv
 from db import get_available_charging_stations
 import os
 import requests
-
-load_dotenv()
+from db import get_available_charging_stations
+import mysql.connector
 
 app = Flask(__name__)
 
@@ -116,7 +116,27 @@ def validate_data(vehicle_type, form_data):
     if vehicle_type not in allowed_types:
         errors.append("Please select a valid vehicle type.")
         return errors
+    # --------------------------------------------------------
+    # VEHICLE TYPE
+    # --------------------------------------------------------
 
+    allowed_types = [
+        "PETROL",
+        "DIESEL",
+        "EV",
+        "HYBRID"
+    ]
+
+    if vehicle_type not in allowed_types:
+
+        errors.append(
+            "Please select a valid vehicle type."
+        )
+
+        return errors
+
+
+    # --------------------------------------------------------
     # PETROL / DIESEL
     if vehicle_type in ["PETROL", "DIESEL"]:
 
@@ -395,6 +415,28 @@ def charging_stations():
         return {"error": str(error)}, 502
 
 
+@app.route("/db-charging-stations")
+def db_charging_stations():
+    try:
+        stations = get_available_charging_stations()
+
+        # Convert database values to JSON-compatible values
+        result = []
+        for station in stations:
+            result.append({
+                key: float(value) if hasattr(value, "as_tuple") else value
+                for key, value in station.items()
+            })
+
+        return {
+            "count": len(result),
+            "stations": result
+        }
+
+    except Exception:
+        app.logger.exception("Database station retrieval failed")
+        return {"error": "Unable to retrieve charging stations"}, 500
+
 
 @app.route("/", methods=["GET", "POST"])
 def index():
@@ -417,14 +459,35 @@ def index():
 
         data = request.form.to_dict()
 
-        selected_vehicle = data.get(
-            "vehicle_type", ""
-        ).upper()
+        selected_vehicle = (
+            data.get(
+                "vehicle_type",
+                ""
+            ).upper()
+        )
+        if selected_vehicle == "EV":
+               try:
+                   stations = get_available_charging_stations()
+               except Exception:
+                   app.logger.exception("Unable to retrieve charging stations")
+                   errors.append("Unable to load charging stations.")
+                   success = False
 
-        # Validate form
-        errors = validate_data(selected_vehicle, data)
 
-        # Calculate range only when validation passes
+        # ----------------------------------------------------
+        # VALIDATE
+        # ----------------------------------------------------
+
+        errors = validate_data(
+            selected_vehicle,
+            data
+        )
+
+
+        # ----------------------------------------------------
+        # CALCULATE
+        # ----------------------------------------------------
+
         if not errors:
 
             safe_range = calculate_safe_range(

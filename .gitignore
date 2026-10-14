@@ -1,4 +1,6 @@
 .env
+test.py
+test_station.py
 __pycache__/
 *.py[cod]
 RouteWise.pdf

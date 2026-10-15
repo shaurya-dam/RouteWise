@@ -1,151 +1,204 @@
-#include<iostream>
-#include<string>
-#include<vector>
-#include<queue>
-#include<fstream>
-#include<sstream>
+#include <iostream>
+#include <string>
+#include <vector>
+#include <fstream>
+#include <sstream>
 
 using namespace std;
 
-class Vehicle {
+class Car {
 protected:
-    double max_range;
-    double current_percent;
+    string carType;
+    double currentPercent;
+    double capacity;
+    double efficiency;
+    string preferredConnector;
+
 public:
-    Vehicle(double m_range, double c_percent) {
-        max_range = m_range;
-        current_percent = c_percent;
+    Car(string type, double percent, double cap, double eff, string conn) {
+        carType = type;
+        currentPercent = percent;
+        capacity = cap;
+        efficiency = eff;
+        preferredConnector = conn;
     }
+
+    string getCarType() const { return carType; }
+    string getConnector() const { return preferredConnector; }
+
+    // Pure Virtual Function (Polymorphism - Har car apna range khud calculate karegi)
     virtual double calculateUsableRange() = 0; 
-    virtual ~Vehicle() {}
+    
+    virtual void displayInfo() const {
+        cout << "Vehicle: " << carType << " | Energy Level: " << currentPercent << "%\n";
+    }
+
+    virtual ~Car() {}
 };
 
-class ElectricVehicle : public Vehicle {
+class Electric : public Car {
 public:
-    ElectricVehicle(double m_range, double c_percent) : Vehicle(m_range, c_percent) {}
+    Electric(double percent, double cap, double eff, string conn) 
+        : Car("EV", percent, cap, eff, conn) {}
+
     double calculateUsableRange() override {
-        return (max_range * (current_percent / 100.0)) * 0.85; 
+        return (currentPercent / 100.0) * capacity * efficiency * 0.80;
+    }
+
+    void displayInfo() const override {
+        cout << "[Electric Vehicle] Battery: " << currentPercent 
+             << "% | Plug: " << preferredConnector << "\n";
     }
 };
 
-class FuelVehicle : public Vehicle {
+class Petrol : public Car {
 public:
-    FuelVehicle(double m_range, double c_percent) : Vehicle(m_range, c_percent) {}
+    Petrol(double percent, double cap, double eff) 
+        : Car("PETROL", percent, cap, eff, "None") {}
+
     double calculateUsableRange() override {
-        return (max_range * (current_percent / 100.0));
+        return (currentPercent / 100.0) * capacity * efficiency * 0.85;
+    }
+
+    void displayInfo() const override {
+        cout << "[Petrol Vehicle] Fuel: " << currentPercent << "%\n";
     }
 };
 
-class HybridVehicle : public Vehicle {
+class Hybrid : public Car {
 public:
-    HybridVehicle(double m_range, double c_percent) : Vehicle(m_range, c_percent) {}
+    Hybrid(double percent, double cap, double eff) 
+        : Car("HYBRID", percent, cap, eff, "Type-2") {}
+
     double calculateUsableRange() override {
-        return (max_range * (current_percent / 100.0)) * 0.95; 
+        // Hybrid Formula (Combined safe range)
+        return (currentPercent / 100.0) * capacity * efficiency * 0.90;
+    }
+    
+    void displayInfo() const override {
+        cout << "[Hybrid Vehicle] Fuel/Battery Combined: " << currentPercent << "%\n";
     }
 };
 
-struct Station {
+
+struct ChargingStation {
     string name;
     double distance;
-    string type;
-    int charging_speed;
-    double score;
+    string connector;
+    double speed;
 };
 
-struct CompareStation {
-    bool operator()(const Station& a, const Station& b) {
-        return a.score > b.score; 
-    }
-};
+class RouteManager {
+private:
+    vector<ChargingStation> stations;
 
-class RouteWiseEngine {
 public:
-    void findBestStations(string filename, double current_range, string v_type, int top_n) {
-        priority_queue<Station, vector<Station>, CompareStation> minHeap;
-        ifstream fi(filename);
+    void loadStationsFromFile(string filename) {
+        ifstream file(filename);
         string line;
 
-        if (!fi.is_open()) {
-            cout << "Error: Backend stations file missing!\n";
+        if (!file.is_open()) {
+            cout << "Warning: stations.txt file not found! Using demo data...\n";
+            stations.push_back({"Station Alpha", 45.0, "Type-2", 50.0});
+            stations.push_back({"Station Beta", 120.0, "CCS2", 150.0});
+            stations.push_back({"Station Gamma", 15.0, "Type-2", 22.0});
+            stations.push_back({"Station Delta", 200.0, "Type-2", 100.0});
             return;
         }
 
-        while (getline(fi, line)) {
+        while (getline(file, line)) {
             stringstream ss(line);
-            string id, name, dist_str, type, speed_str;
+            string id, name, dist_str, conn, speed_str;
             
             getline(ss, id, ','); 
             getline(ss, name, ','); 
             getline(ss, dist_str, ',');
-            getline(ss, type, ','); 
+            getline(ss, conn, ','); 
             getline(ss, speed_str, ',');
 
-            double dist = stod(dist_str);
-            int speed = stoi(speed_str);
-
-            bool isCompat = false;
-            if (v_type == "Hybrid" && (type == "EV" || type == "Petrol")) {
-                isCompat = true;
-            } 
-            else if (type == v_type) {
-                isCompat = true; 
-            }
-            if (isCompat && dist <= current_range) {
-                double score = (type == "EV") ? (dist - speed * 0.15) : dist;
-                minHeap.push({name, dist, type, speed, score});
-            }
+            stations.push_back({name, stod(dist_str), conn, stod(speed_str)});
         }
-        fi.close();
+        file.close();
+    }
 
-        cout << "\n--- TOP " << top_n << " RECOMMENDED STATIONS ---\n";
-        if (minHeap.empty()) {
-            cout << "ALERT: No stations reachable within " << current_range << " km!\n";
-            return;
-        }
-        int rank = 1;
-        while (!minHeap.empty() && rank <= top_n) {
-            Station best = minHeap.top();
-            minHeap.pop();
+    void planRoute(Car* userCar) {
+        double currentRange = userCar->calculateUsableRange();
+        
+        cout << "\n------------------------------------------\n";
+        userCar->displayInfo();
+        cout << "Calculated Safe Range: " << currentRange << " km\n";
+        cout << "------------------------------------------\n\n";
+
+        bool foundCompatible = false;
+        double nearestDist = 99999.0;
+        string bestStation = "";
+
+        cout << "--- Station Analysis ---\n";
+        for (const auto& station : stations) {
             
-            cout << rank << ". " << best.name << " (" << best.type << ") | Dist: " << best.distance << " km";
-            if (best.type == "EV") cout << " | Speed: " << best.charging_speed << " kW";
-            cout << "\n";
-            rank++;
+            bool withinRange = (station.distance <= currentRange);
+            
+            bool isCompatible = true;
+            if (userCar->getCarType() == "EV") {
+                isCompatible = (station.connector == userCar->getConnector());
+            }
+
+            if (withinRange && isCompatible) {
+                cout << "[REACHABLE] " << station.name << " (" << station.distance << " km)\n";
+                foundCompatible = true;
+                
+                if (station.distance < nearestDist) {
+                    nearestDist = station.distance;
+                    bestStation = station.name;
+                }
+            }
         }
+
+        cout << "\n==========================================\n";
+        if (foundCompatible) {
+            cout << ">> RECOMMENDED NEAREST STATION: " << bestStation << " (" << nearestDist << " km) <<\n";
+        } else {
+            cout << ">> ALERT: No reachable & compatible stations found! <<\n";
+        }
+        cout << "==========================================\n";
     }
 };
 
+
 int main(int argc, char* argv[]) {
-    if (argc != 4) {
-        cout << "Error! Usage: ./RouteWiseEngine <Type> <Max_Range> <Current_Percentage>\n";
+    if (argc < 5) {
+        cout << "Usage: ./RouteWiseEngine <Type> <Percent> <Capacity> <Efficiency> [Connector]\n";
+        cout << "Example: ./RouteWiseEngine EV 80 40 6 Type-2\n";
         return 1;
     }
 
-    string vehicle_type = argv[1];
-    double max_range = stod(argv[2]);
-    double current_percent = stod(argv[3]);
+    string v_type = argv[1];
+    double percent = stod(argv[2]);
+    double capacity = stod(argv[3]);
+    double efficiency = stod(argv[4]);
+    string connector = (argc >= 6) ? argv[5] : "None";
 
-    Vehicle* myVehicle = nullptr;
+    Car* myCar = nullptr;
+
+    if (v_type == "EV") {
+        myCar = new Electric(percent, capacity, efficiency, connector);
+    } 
+    else if (v_type == "PETROL" || v_type == "DIESEL") {
+        myCar = new Petrol(percent, capacity, efficiency);
+    } 
+    else if (v_type == "HYBRID") {
+        myCar = new Hybrid(percent, capacity, efficiency);
+    } 
+    else {
+        cout << "Error: Unknown Vehicle Type passed by Backend!\n";
+        return 1;
+    }
+
+    RouteManager engine;
+    engine.loadStationsFromFile("stations.txt");
+    engine.planRoute(myCar);
+
+    delete myCar;
     
-    if (vehicle_type == "EV") {
-        myVehicle = new ElectricVehicle(max_range, current_percent);
-    } else if (vehicle_type == "Petrol" || vehicle_type == "Diesel") {
-        myVehicle = new FuelVehicle(max_range, current_percent);
-    } else if (vehicle_type == "Hybrid") {
-        myVehicle = new HybridVehicle(max_range, current_percent);
-    } else {
-        cout << "Error: Unknown Vehicle Type!\n";
-        return 1;
-    }
-
-    double usable_range = myVehicle->calculateUsableRange();
-
-    cout << "Vehicle Type: " << vehicle_type << "\n";
-    cout << "Energy Level: " << current_percent << "% | Usable Range: " << usable_range << " km\n";
-
-    RouteWiseEngine engine;
-    engine.findBestStations("stations.txt", usable_range, vehicle_type, 3);
-
-    delete myVehicle;
     return 0;
 }

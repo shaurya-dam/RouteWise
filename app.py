@@ -7,7 +7,7 @@ import requests
 from dotenv import load_dotenv
 from flask import Flask, jsonify, render_template, request
 
-from db import get_available_charging_stations
+from db import get_available_charging_stations,save_vehicle_data
 
 
 # ============================================================
@@ -443,6 +443,28 @@ def charging_stations():
 # ============================================================
 
 
+@app.route("/db-charging-stations")
+def db_charging_stations():
+    try:
+        stations = get_available_charging_stations()
+
+        # Convert database values to JSON-compatible values
+        result = []
+        for station in stations:
+            result.append({
+                key: float(value) if hasattr(value, "as_tuple") else value
+                for key, value in station.items()
+            })
+
+        return {
+            "count": len(result),
+            "stations": result
+        }
+
+    except Exception:
+        app.logger.exception("Database station retrieval failed")
+        return {"error": "Unable to retrieve charging stations"}, 500
+
 
 @app.route("/", methods=["GET", "POST"])
 def index():
@@ -498,6 +520,35 @@ def index():
             form_data.get("vehicle_type", "").strip().upper()
         )
         vehicle_model = form_data.get("vehicle_model", "").strip()
+            data.get(
+                "vehicle_type",
+                ""
+            ).upper()
+        )
+        if selected_vehicle == "EV":
+               try:
+                   stations = get_available_charging_stations()
+               except Exception:
+                   app.logger.exception("Unable to retrieve charging stations")
+                   errors.append("Unable to load charging stations.")
+                   success = False
+
+
+        # ----------------------------------------------------
+        # VALIDATE
+        # ----------------------------------------------------
+
+        errors = validate_data(
+            selected_vehicle,
+            data
+        )
+
+
+        # ----------------------------------------------------
+        # CALCULATE
+        # ----------------------------------------------------
+
+        if not errors:
 
         errors = validate_data(selected_vehicle, form_data)
 

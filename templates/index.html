@@ -19,7 +19,7 @@
 </head>
 
 
-<body>
+<body data-active-tab="{{ active_tab }}">
 
 
 
@@ -136,33 +136,33 @@
     ====================================================== -->
 
 <section class="stepper">
-
-    <div class="step {% if not show_energy %}active{% endif %}">
+    <div class="step {% if active_tab == 'vehicle' %}active{% endif %}"
+         onclick="switchTab('vehicle')">
         <div class="step-circle">1</div>
         <span>Vehicle</span>
     </div>
 
     <div class="step-line"></div>
 
-    <div class="step {% if show_energy %}active{% endif %}">
+    <div class="step {% if active_tab == 'energy' %}active{% endif %}"
+         onclick="switchTab('energy')">
         <div class="step-circle">2</div>
         <span>Energy</span>
     </div>
 
     <div class="step-line"></div>
 
-    <div class="step">
+    <div class="step" onclick="switchTab('location')">
         <div class="step-circle">3</div>
         <span>Location</span>
     </div>
 
     <div class="step-line"></div>
 
-    <div class="step">
+    <div class="step" onclick="switchTab('result')">
         <div class="step-circle">4</div>
         <span>Result</span>
     </div>
-
 </section>
 
 
@@ -177,8 +177,9 @@
         <!-- =================================================
              FORM
         ================================================== -->
+<div id="tab-vehicle" class="tab-content {% if active_tab != 'vehicle' %}hidden{% endif %}">
+   
 
-        {% if not show_energy %}
         <section class="card form-card">
 
 
@@ -376,19 +377,9 @@
 
             {% if selected_vehicle %}
 
-
-            <form
-                method="POST"
-                action="{{ url_for('index') }}"
-                
-            >
-
-
-                <input
-                    type="hidden"
-                    name="vehicle_type"
-                    value="{{ selected_vehicle }}"
-                >
+<form method="POST" action="{{ url_for('index') }}">
+    <input type="hidden" name="vehicle_type" value="{{ selected_vehicle }}">
+    <input type="hidden" name="active_tab" value="energy">
 
 
                 <!-- =================================================
@@ -1172,12 +1163,15 @@
 
         </section>
 
-{% endif %}
-{% if show_energy and safe_range is not none and range_status %}
-{% set fuel = form_data.get('fuel_percent', 0)|float %}
-{% set battery = form_data.get('battery_percent', 0)|float %}
+</div>
 
-<section class="card energy-dashboard status-{{ range_status|lower }}">
+{% set fuel = data.get('fuel_percent', 0)|float %}
+{% set battery = data.get('battery_percent', 0)|float %}
+
+<div id="tab-energy" class="tab-content {% if active_tab != 'energy' %}hidden{% endif %}">
+    {% if show_energy and safe_range is not none and range_status %}
+    <section class="card energy-dashboard status-{{ range_status|lower }}">
+      
 
     <div class="energy-dashboard-header">
         <div>
@@ -1198,7 +1192,7 @@
         <div class="vehicle-summary-info">
             <span>SELECTED VEHICLE</span>
             <strong>{{ selected_vehicle }}</strong>
-            <small>{{ form_data.get('vehicle_model') or 'Model not provided' }}</small>
+            <small>{{ data.get('vehicle_model') or 'Model not provided' }}</small>
         </div>
         <span class="vehicle-type-tag">{{ selected_vehicle }}</span>
     </div>
@@ -1233,55 +1227,103 @@
         </div>
     </div>
 
-    <div class="energy-chart">
-        <div class="energy-chart-heading">
-            <div>
-                <h3>Energy level</h3>
-                <p>Current available energy</p>
-            </div>
-            <span>{{ "%.0f"|format(energy_level) }}%</span>
-        </div>
+{% set fuel = data.get('fuel_percent', 0)|float %}
+{% set battery = data.get('battery_percent', 0)|float %}
 
-        {% if selected_vehicle in ["PETROL", "DIESEL", "HYBRID"] %}
-        <div class="energy-metric">
-            <div class="energy-metric-label">
-                <span>Fuel remaining</span><strong>{{ "%.0f"|format(fuel) }}%</strong>
-            </div>
-            <div class="energy-track">
-                <div class="energy-fill fuel-fill"
-                     style="width: {{ [fuel, 100]|min }}%"></div>
-            </div>
-        </div>
-        {% endif %}
+{% set fuel_width = [[fuel, 100]|min, 0]|max %}
+{% set battery_width = [[battery, 100]|min, 0]|max %}
 
-        {% if selected_vehicle in ["EV", "HYBRID"] %}
-        <div class="energy-metric">
-            <div class="energy-metric-label">
-                <span>Battery remaining</span><strong>{{ "%.0f"|format(battery) }}%</strong>
-            </div>
-            <div class="energy-track">
-                <div class="energy-fill battery-fill"
-                     style="width: {{ [battery, 100]|min }}%"></div>
-            </div>
-        </div>
-        {% endif %}
-    </div>
-
-    <div class="energy-footer">
-        <span>✓</span>
-        <p>Range estimated by the RouteWise C++ engine.</p>
-    </div>
-
-</section>
+{% if selected_vehicle == "HYBRID" %}
+    {% set energy_level = (fuel + battery) / 2 %}
+{% elif selected_vehicle == "EV" %}
+    {% set energy_level = battery %}
+{% else %}
+    {% set energy_level = fuel %}
 {% endif %}
 
+{% set energy_width = [[energy_level, 100]|min, 0]|max %}
 
+<div class="energy-chart">
 
+    <div class="energy-chart-heading">
+        <div>
+            <h3>Energy level</h3>
+            <p>Current available energy</p>
+        </div>
+
+        <span>{{ "%.0f"|format(energy_level) }}%</span>
+    </div>
+
+    <div class="energy-metric">
+        <div class="energy-metric-label">
+            <span>
+                {% if selected_vehicle == "EV" %}
+                    Battery remaining
+                {% else %}
+                    {% if selected_vehicle == "HYBRID" %}
+                        Combined energy overview
+                    {% else %}
+                        Fuel remaining
+                    {% endif %}
+                {% endif %}
+            </span>
+
+            <strong>{{ "%.0f"|format(energy_level) }}%</strong>
+        </div>
+
+        <div class="energy-track">
+            <div
+                class="energy-fill battery-fill"
+                style="width: {{ energy_width }}%;">
+            </div>
+        </div>
+    </div>
+{% if selected_vehicle in ["PETROL", "DIESEL", "HYBRID"] %}
+<div class="energy-metric">
+
+    <div class="energy-metric-label">
+        <span>Fuel remaining</span>
+        <strong>{{ "%.0f"|format(fuel) }}%</strong>
+    </div>
+
+    <div class="energy-track">
+        <div class="energy-fill fuel-fill"
+             style="width: {{ fuel_width }}%;"></div>
+    </div>
+
+</div>
+{% endif %}
+
+    {% if selected_vehicle in ["EV", "HYBRID"] %}
+    <div class="energy-metric">
+
+        <div class="energy-metric-label">
+            <span>Battery remaining</span>
+            <strong>{{ "%.0f"|format(battery) }}%</strong>
+        </div>
+
+        <div class="energy-track">
+            <div
+                class="energy-fill battery-fill"
+                style="width: {{ battery_width }}%;"
+            ></div>
+        </div>
+
+    </div>
+    {% endif %}
+
+</div> <!-- energy-chart -->
+
+    </section> <!-- energy-dashboard -->
+    
+</div> <!-- tab-energy -->
+
+</section> <!-- workspace -->
 </main>
 
 
 <!-- AVAILABLE STATIONS -->
-{% if stations %}
+<!-- {% if stations %}
 <section class="block">
     <div class="block-heading">
         <div>
@@ -1305,42 +1347,9 @@
         </div>
 
         <span class="mini-tag blue">STATIONS</span>
-    </div>
+    </div> -->
 
-    {% for station in stations %}
-    <div class="location-option">
-        <div class="location-option-content">
-            <div class="location-option-title">
-                {{ station.get('name', station.get('station_name', 'Unknown station')) }}
-            </div>
-
-            <div class="location-option-description">
-                {{ station.get('address', '') }}
-                {% if station.get('city') %}
-                    , {{ station.get('city') }}
-                {% endif %}
-            </div>
-
-            {% if station.get('available_chargers') is not none %}
-            <div class="helper">
-                Available chargers: {{ station.get('available_chargers') }}
-                <br>
-                Charging speed: {{ station.get('charging_speed', 'N/A') }} kW
-                <br>
-                Price: ₹{{ station.get('price_per_kwh', 'N/A') }} per kWh
-            </div>
-            {% elif station.get('latitude') is not none %}
-            <div class="helper">
-                Fuel station location found through TomTom.
-                <br>
-                Latitude: {{ station.get('latitude') }}
-                <br>
-                Longitude: {{ station.get('longitude') }}
-            </div>
-            {% endif %}
-        </div>
-    </div>
-    {% endfor %}
+   
 </section>
 {% endif %}
 
@@ -1353,6 +1362,7 @@
     RouteWise · Smart route & station recommendation
 
 </footer> -->
+{% endif %}
 <script src="{{ url_for('static', filename='script.js') }}"></script>
 
 </body>

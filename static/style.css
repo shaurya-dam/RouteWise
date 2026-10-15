@@ -3094,3 +3094,331 @@ footer {
         display: none;
     }
 }
+
+
+/* ============================================================
+   ROUTEWISE - ENERGY OVERVIEW DASHBOARD
+============================================================ */
+
+.energy-dashboard {
+    margin: 28px 0;
+    padding: 28px;
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 20px;
+    box-shadow: 0 8px 28px rgba(0, 0, 0, 0.06);
+}
+
+.energy-dashboard-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 16px;
+    flex-wrap: wrap;
+    margin-bottom: 24px;
+}
+
+.energy-eyebrow {
+    color: #64748b;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1.2px;
+}
+
+.energy-dashboard-header h2 {
+    margin: 8px 0;
+    font-size: 25px;
+    color: #1f2937;
+}
+
+.energy-dashboard-header p,
+.range-hero p,
+.energy-chart-heading p {
+    margin: 5px 0 0;
+    color: #64748b;
+    font-size: 13px;
+}
+
+.energy-status-badge {
+    padding: 8px 14px;
+    border-radius: 30px;
+    background: #dcfce7;
+    color: #166534;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.status-low .energy-status-badge {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.status-critical .energy-status-badge {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+.vehicle-summary {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 16px;
+    background: #f8fafc;
+    border: 1px solid #e5e7eb;
+    border-radius: 14px;
+}
+
+.vehicle-summary-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 46px;
+    height: 46px;
+    flex-shrink: 0;
+    border-radius: 12px;
+    background: #e8f5e9;
+    font-size: 22px;
+}
+
+.vehicle-summary-info {
+    display: flex;
+    flex: 1;
+    min-width: 0;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.vehicle-summary-info > span {
+    color: #64748b;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1px;
+}
+
+.vehicle-summary-info strong {
+    color: #1f2937;
+    font-size: 15px;
+}
+
+.vehicle-summary-info small {
+    color: #64748b;
+    overflow-wrap: anywhere;
+}
+
+.vehicle-type-tag {
+    padding: 6px 10px;
+    background: #ecfdf5;
+    color: #166534;
+    border-radius: 8px;
+    font-size: 11px;
+    font-weight: 700;
+}
+
+.range-hero {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 24px;
+    padding: 28px 10px;
+}
+
+.range-caption {
+    color: #64748b;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1px;
+}
+
+.range-number {
+    margin-top: 10px;
+    color: #325b33;
+    font-size: clamp(38px, 6vw, 58px);
+    font-weight: 800;
+    line-height: 1.1;
+}
+
+.range-number span {
+    font-size: 20px;
+    font-weight: 600;
+}
+
+.range-ring {
+    position: relative;
+    width: 130px;
+    height: 130px;
+    flex-shrink: 0;
+}
+
+.range-ring svg {
+    width: 100%;
+    height: 100%;
+    transform: rotate(-90deg);
+}
+
+.range-ring circle {
+    fill: none;
+    stroke-width: 9;
+}
+
+.ring-track {
+    stroke: #e5e7eb;
+}
+
+.ring-value {
+    stroke: #16a34a;
+    stroke-linecap: round;
+}
+
+.status-low .ring-value {
+    stroke: #d97706;
+}
+
+.status-critical .ring-value {
+    stroke: #dc2626;
+}
+
+.ring-label {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+.ring-label strong {
+    font-size: 25px;
+    color: #1f2937;
+}
+
+.ring-label small {
+    margin-top: 3px;
+    color: #64748b;
+    font-size: 11px;
+}
+
+.energy-chart {
+    padding: 20px;
+    border: 1px solid #e5e7eb;
+    border-radius: 14px;
+    background: #ffffff;
+}
+
+.energy-chart-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 22px;
+}
+
+.energy-chart-heading h3 {
+    margin: 0;
+    font-size: 16px;
+    color: #1f2937;
+}
+
+.energy-chart-heading > span {
+    color: #325b33;
+    font-size: 20px;
+    font-weight: 800;
+}
+
+.energy-metric + .energy-metric {
+    margin-top: 20px;
+}
+
+.energy-metric-label {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 9px;
+    color: #475569;
+    font-size: 13px;
+}
+
+.energy-metric-label strong {
+    color: #1f2937;
+}
+
+.energy-track {
+    height: 10px;
+    overflow: hidden;
+    background: #e5e7eb;
+    border-radius: 20px;
+}
+
+.energy-fill {
+    height: 100%;
+    border-radius: inherit;
+    transition: width 0.4s ease;
+}
+
+.fuel-fill {
+    background: #16a34a;
+}
+
+.battery-fill {
+    background: #2563eb;
+}
+
+.energy-footer {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 20px;
+    color: #64748b;
+    font-size: 12px;
+}
+
+.energy-footer > span {
+    color: #16a34a;
+    font-size: 18px;
+}
+
+.energy-footer p {
+    margin: 0;
+}
+
+@media (max-width: 600px) {
+    .energy-dashboard {
+        padding: 18px;
+    }
+
+    .range-hero {
+        gap: 12px;
+    }
+
+    .range-ring {
+        width: 100px;
+        height: 100px;
+    }
+
+    .ring-label strong {
+        font-size: 20px;
+    }
+
+    .vehicle-type-tag {
+        display: none;
+    }
+
+    .energy-chart {
+        padding: 15px;
+    }
+}
+.tab-content {
+    display: block;
+}
+
+.tab-content.hidden {
+    display: none;
+}
+
+.step {
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.step:hover {
+    opacity: 0.8;
+}

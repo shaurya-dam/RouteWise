@@ -467,108 +467,46 @@ def db_charging_stations():
 
 
 @app.route("/", methods=["GET", "POST"])
+
+
 def index():
     selected_vehicle = ""
     vehicle_model = ""
-    safe_range = None
-    range_status = None
+    data = {}
     errors = []
     stations = []
-    engine_output = ""
-    station_error = None
-    form_data = {}
-    show_energy = False
+    success = False
+    safe_range = None
+    range_status = None
+    active_tab = "vehicle"
 
-   
     if request.method == "GET":
-        selected_vehicle = (
-            request.args.get("vehicle_type", "").strip().upper()
-        )
+        selected_vehicle = request.args.get(
+            "vehicle_type", ""
+        ).strip().upper()
 
-        allowed_vehicles = {"PETROL", "DIESEL", "EV", "HYBRID"}
+    if request.method == "POST":
+        data = request.form.to_dict()
 
-        if selected_vehicle not in allowed_vehicles:
-            selected_vehicle = ""
+        selected_vehicle = data.get(
+            "vehicle_type", ""
+        ).strip().upper()
 
-        # Load EV stations only when the TomTom API key exists.
-        if selected_vehicle == "EV" and TOMTOM_API_KEY:
-            try:
-                stations = get_tomtom_ev_stations(
-                    DEFAULT_LATITUDE,
-                    DEFAULT_LONGITUDE,
-                )
-            except Exception:
-                app.logger.exception("EV station lookup failed")
-                station_error = (
-                    "Unable to retrieve EV charging stations."
-                )
+        vehicle_model = data.get("vehicle_model", "").strip()
 
-        elif selected_vehicle == "EV":
-            station_error = (
-                "EV stations unavailable: TomTom API key "
-                "is not configured. Energy Status can still "
-                "be calculated."
-            )
+        # Validate submitted data
+        errors = validate_data(selected_vehicle, data)
 
-    
-     
-
-    else:
-        form_data = request.form.to_dict()
-
-        selected_vehicle = (
-            form_data.get("vehicle_type", "").strip().upper()
-        )
-        vehicle_model = form_data.get("vehicle_model", "").strip()
-            data.get(
-                "vehicle_type",
-                ""
-            ).upper()
-        )
-        if selected_vehicle == "EV":
-               try:
-                   stations = get_available_charging_stations()
-               except Exception:
-                   app.logger.exception("Unable to retrieve charging stations")
-                   errors.append("Unable to load charging stations.")
-                   success = False
-
-
-        # ----------------------------------------------------
-        # VALIDATE
-        # ----------------------------------------------------
-
-        errors = validate_data(
-            selected_vehicle,
-            data
-        )
-
-
-        # ----------------------------------------------------
-        # CALCULATE
-        # ----------------------------------------------------
-
-        if not errors:
-
-        errors = validate_data(selected_vehicle, form_data)
-
-        # Read coordinates supplied by your location JavaScript.
-        latitude = safe_float(form_data.get("latitude"))
-        longitude = safe_float(form_data.get("longitude"))
-
-        # Fall back to Dehradun if no coordinates were supplied.
-        if latitude is None or longitude is None:
-            latitude = DEFAULT_LATITUDE
-            longitude = DEFAULT_LONGITUDE
-
+        # Calculate range only if validation succeeds
         if not errors:
             try:
-                # C++ calculates the usable vehicle range.
-                safe_range, engine_output = calculate_cpp_safe_range(
+                safe_range, cpp_output = calculate_cpp_safe_range(
                     selected_vehicle,
-                    form_data,
+                    data
                 )
-                show_energy = True 
+
+                success = True
+                active_tab = "energy"
 
                 if safe_range >= 80:
                     range_status = "Normal"
@@ -577,63 +515,36 @@ def index():
                 else:
                     range_status = "Critical"
 
-                # Petrol and Diesel: retrieve nearby fuel stations from TomTom.
-                if selected_vehicle in ("PETROL", "DIESEL"):
-                    stations = get_tomtom_fuel_stations(
-                        latitude,
-                        longitude,
-                    )
-
-                
-                
-# EV: retrieve charging stations from TomTom.
-                elif selected_vehicle == "EV":
-                   stations = get_tomtom_ev_stations(
-                        latitude,
-                        longitude,
-                    )
-
-# Hybrid: retrieve both types from TomTom.
-                elif selected_vehicle == "HYBRID":
-                   fuel_stations = get_tomtom_fuel_stations(
-                        latitude,
-                        longitude,
-                    )
-
-                   ev_stations = get_tomtom_ev_stations(
-                          latitude,
-                        longitude,
-                            )
-
-                   stations = fuel_stations + ev_stations
-
-
-            except (ValueError, FileNotFoundError, RuntimeError) as exc:
-                app.logger.exception("Vehicle processing failed")
-                errors.append(str(exc))
+                # Fetch database charging stations for EV
+                if selected_vehicle == "EV":
+                    try:
+                        stations = get_available_charging_stations()
+                    except Exception:
+                        app.logger.exception(
+                            "Unable to retrieve charging stations"
+                        )
+                        errors.append(
+                            "Unable to load charging stations."
+                        )
+                        success = False
 
             except Exception as exc:
-                app.logger.exception("Unexpected application error")
-                errors.append(
-                    "Unable to retrieve vehicle or station information. "
-                    "Check the Flask terminal."
-                )
+                app.logger.exception("Safe range calculation failed")
+                errors.append(str(exc))
 
     return render_template(
         "index.html",
         selected_vehicle=selected_vehicle,
         vehicle_model=vehicle_model,
+        data=data,
+        errors=errors,
+        success=success,
         safe_range=safe_range,
         range_status=range_status,
-        show_energy=show_energy,
-        errors=errors,
         stations=stations,
-        station_error=station_error,
-        engine_output=engine_output,
-        form_data=form_data,
-        data=form_data,
+         show_energy=success,
+         active_tab=active_tab
     )
-
 
 
 

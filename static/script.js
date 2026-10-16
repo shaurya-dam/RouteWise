@@ -7,169 +7,185 @@ const locationStatus = document.getElementById("locationStatus");
 const latitudeInput = document.getElementById("latitude");
 const longitudeInput = document.getElementById("longitude");
 
+if (
+    locationBtn && addressBtn &&
+    locationName && locationStatus &&
+    latitudeInput && longitudeInput
+) {
 
-// ============================================================
-// USE CURRENT LOCATION
-// ============================================================
-
-locationBtn.addEventListener("click", function () {
-
-    if (!navigator.geolocation) {
-        locationName.textContent = "Location not supported";
-        locationStatus.textContent =
-            "Your browser does not support location detection.";
-        return;
+    function showLocationMessage(name, status) {
+        if (locationName) locationName.textContent = name;
+        if (locationStatus) locationStatus.textContent = status;
     }
 
-    locationName.textContent = "Detecting location...";
-    locationStatus.textContent =
-        "Please allow location access in your browser.";
-
-    navigator.geolocation.getCurrentPosition(
-
-        async function (position) {
-
-            const latitude = position.coords.latitude;
-            const longitude = position.coords.longitude;
-
-            // Store coordinates secretly
-            latitudeInput.value = latitude;
-            longitudeInput.value = longitude;
-
-            try {
-
-                const response = await fetch(
-                    `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&zoom=18&addressdetails=1`
+    // USE CURRENT LOCATION
+    if (locationBtn) {
+        locationBtn.addEventListener("click", function () {
+            if (!navigator.geolocation) {
+                showLocationMessage(
+                    "Location not supported",
+                    "Your browser does not support location detection."
                 );
-
-                const result = await response.json();
-
-                if (result.display_name) {
-
-                    locationName.textContent =
-                        "📍 " + result.display_name;
-
-                    locationStatus.textContent =
-                        "Current location detected successfully.";
-
-                } else {
-
-                    locationName.textContent =
-                        "📍 Current Location";
-
-                    locationStatus.textContent =
-                        "Location detected successfully.";
-
-                }
-
-            } catch (error) {
-
-                locationName.textContent =
-                    "📍 Current Location";
-
-                locationStatus.textContent =
-                    "Location detected, but address could not be loaded.";
-
+                return;
             }
 
-            locationBtn.textContent =
-                "✓ Current Location Selected";
+            showLocationMessage(
+                "Detecting location...",
+                "Please allow location access in your browser."
+            );
 
-        },
+            navigator.geolocation.getCurrentPosition(
+                async function (position) {
+                    const latitude = position.coords.latitude;
+                    const longitude = position.coords.longitude;
 
-        function (error) {
+                    if (latitudeInput) latitudeInput.value = latitude;
+                    if (longitudeInput) longitudeInput.value = longitude;
 
-            locationName.textContent =
-                "Location not detected";
+                    try {
+                        const response = await fetch(
+                            `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&zoom=18&addressdetails=1`,
+                            {
+                                headers: {
+                                    "User-Agent": "MyWebGISApp/1.0" // Nominatim requires a valid user-agent header
+                                }
+                            }
+                        );
 
-            locationStatus.textContent =
-                "Please allow location access and try again.";
+                        if (!response.ok) {
+                            throw new Error("Address lookup failed");
+                        }
 
-        }
+                        const result = await response.json();
 
-    );
+                        showLocationMessage(
+                            result.display_name
+                                ? "📍 " + result.display_name
+                                : "📍 Current Location",
+                            "Current location detected successfully."
+                        );
+                    } catch (error) {
+                        showLocationMessage(
+                            "📍 Current Location",
+                            "Location detected, but address could not be loaded."
+                        );
+                    }
 
-});
+                    locationBtn.textContent = "✓ Current Location Selected";
+                },
+                function (error) {
+                    console.error(error);
+                    showLocationMessage(
+                        "Location not detected",
+                        "Please allow location access and try again."
+                    );
+                },
+                {
+                    enableHighAccuracy: true,
+                    timeout: 10000,
+                    maximumAge: 0
+                }
+            );
+        });
+    }
+
+    // SEARCH MANUAL ADDRESS
+    if (addressBtn) {
+        addressBtn.addEventListener("click", async function () {
+            const addressInput = document.getElementById("address");
+            const address = addressInput ? addressInput.value.trim() : "";
+
+            if (!address) {
+                showLocationMessage(
+                    "No address entered",
+                    "Please enter an address."
+                );
+                return;
+            }
+
+            showLocationMessage(
+                "Searching address...",
+                "Finding your location."
+            );
+
+            try {
+                const response = await fetch(
+                    `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}&limit=1`,
+                    {
+                        headers: {
+                            "User-Agent": "MyWebGISApp/1.0"
+                        }
+                    }
+                );
+
+                if (!response.ok) {
+                    throw new Error("Address lookup failed");
+                }
+
+                const results = await response.json();
+
+                if (!results.length) {
+                    showLocationMessage(
+                        "Address not found",
+                        "Try entering a more specific address."
+                    );
+                    return;
+                }
+
+                const result = results[0];
+
+                if (latitudeInput) latitudeInput.value = result.lat;
+                if (longitudeInput) longitudeInput.value = result.lon;
+
+                showLocationMessage(
+                    "📍 " + result.display_name,
+                    "Address selected successfully."
+                );
+
+                addressBtn.textContent = "✓ Address Selected";
+
+            } catch (error) {
+                if (locationName) locationName.textContent = "Unable to find address";
+                if (locationStatus) locationStatus.textContent = "Please check your internet connection.";
+            }
+        });
+    }
+}
+// ... aapka existing location code (unchanged) ...
 
 
 // ============================================================
-// MANUAL ADDRESS
+// TAB SWITCHING
 // ============================================================
 
-addressBtn.addEventListener("click", async function () {
+function switchTab(tabName) {
+    document.querySelectorAll('.tab-content').forEach(tab => {
+        tab.classList.add('hidden');
+    });
 
-    const address =
-        document.getElementById("address").value.trim();
-
-    if (!address) {
-
-        locationName.textContent =
-            "No address entered";
-
-        locationStatus.textContent =
-            "Please enter an address.";
-
-        return;
+    const targetTab = document.getElementById('tab-' + tabName);
+    if (targetTab) {
+        targetTab.classList.remove('hidden');
     }
 
-    locationName.textContent =
-        "Searching address...";
+    document.querySelectorAll('.step').forEach(step => {
+        step.classList.remove('active');
+    });
 
-    locationStatus.textContent =
-        "Finding your location.";
+    const tabMap = {
+        'vehicle': 0,
+        'energy': 1,
+        'location': 2,
+        'result': 3
+    };
 
-
-    try {
-
-        const response = await fetch(
-            `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}&limit=1`
-        );
-
-        const results = await response.json();
-
-
-        if (results.length === 0) {
-
-            locationName.textContent =
-                "Address not found";
-
-            locationStatus.textContent =
-                "Try entering a more specific address.";
-
-            return;
-        }
-
-
-        const result = results[0];
-
-
-        // Store coordinates secretly
-
-        latitudeInput.value = result.lat;
-        longitudeInput.value = result.lon;
-
-
-        // Show address to user
-
-        locationName.textContent =
-            "📍 " + result.display_name;
-
-        locationStatus.textContent =
-            "Address selected successfully.";
-
-        addressBtn.textContent =
-            "✓ Address Selected";
-
+    const stepIndex = tabMap[tabName];
+    if (stepIndex !== undefined) {
+        document.querySelectorAll('.step')[stepIndex].classList.add('active');
     }
+}
 
-    catch (error) {
-
-        locationName.textContent =
-            "Unable to find address";
-
-        locationStatus.textContent =
-            "Please check your internet connection.";
-
-    }
-
+window.addEventListener('DOMContentLoaded', function() {
+    const activeTab = document.body.dataset.activeTab || 'vehicle';
+    switchTab(activeTab);
 });

@@ -518,28 +518,6 @@ def charging_stations():
 # ============================================================
 
 
-@app.route("/db-charging-stations")
-def db_charging_stations():
-    try:
-        stations = get_available_charging_stations()
-
-        # Convert database values to JSON-compatible values
-        result = []
-        for station in stations:
-            result.append({
-                key: float(value) if hasattr(value, "as_tuple") else value
-                for key, value in station.items()
-            })
-
-        return {
-            "count": len(result),
-            "stations": result
-        }
-
-    except Exception:
-        app.logger.exception("Database station retrieval failed")
-        return {"error": "Unable to retrieve charging stations"}, 500
-
 
 @app.route("/", methods=["GET", "POST"])
 

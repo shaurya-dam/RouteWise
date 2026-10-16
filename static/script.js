@@ -159,33 +159,164 @@ if (
 // ============================================================
 
 function switchTab(tabName) {
-    document.querySelectorAll('.tab-content').forEach(tab => {
-        tab.classList.add('hidden');
+    document.querySelectorAll(".tab-content").forEach(tab => {
+        tab.classList.add("hidden");
     });
 
-    const targetTab = document.getElementById('tab-' + tabName);
-    if (targetTab) {
-        targetTab.classList.remove('hidden');
+    const targetTab = document.getElementById("tab-" + tabName);
+
+    if (!targetTab) {
+        console.error("Tab not found:", tabName);
+        return;
     }
 
-    document.querySelectorAll('.step').forEach(step => {
-        step.classList.remove('active');
+    targetTab.classList.remove("hidden");
+
+    document.querySelectorAll(".step").forEach(step => {
+        step.classList.remove("active");
     });
 
     const tabMap = {
-        'vehicle': 0,
-        'energy': 1,
-        'location': 2,
-        'result': 3
+        vehicle: 0,
+        energy: 1,
+        location: 2,
+        result: 3
     };
 
+    const steps = document.querySelectorAll(".step");
     const stepIndex = tabMap[tabName];
-    if (stepIndex !== undefined) {
-        document.querySelectorAll('.step')[stepIndex].classList.add('active');
+
+    if (stepIndex !== undefined && steps[stepIndex]) {
+        steps[stepIndex].classList.add("active");
+    }
+
+    if (tabName === "location") {
+        loadStationRecommendations();
     }
 }
 
-window.addEventListener('DOMContentLoaded', function() {
-    const activeTab = document.body.dataset.activeTab || 'vehicle';
+async function loadStationRecommendations() {
+    const message = document.getElementById("stationMessage");
+    const resultsContainer = document.getElementById("stationResults");
+
+    const latitude = document.getElementById("latitude")?.value;
+    const longitude = document.getElementById("longitude")?.value;
+
+    const vehicleInput = document.querySelector(
+        'input[name="vehicle_type"]:checked'
+    ) || document.querySelector('input[name="vehicle_type"]');
+
+    const vehicleType = vehicleInput?.value;
+
+    if (!message || !resultsContainer) return;
+
+    resultsContainer.replaceChildren();
+
+    if (!vehicleType) {
+        message.textContent = "Please select a vehicle first.";
+        return;
+    }
+
+    if (!latitude || !longitude) {
+        message.textContent =
+            "Please select your current location or search for an address first.";
+        return;
+    }
+
+    message.textContent = "Finding nearby stations…";
+
+    try {
+        const params = new URLSearchParams({
+            vehicle_type: vehicleType,
+            lat: latitude,
+            lon: longitude
+        });
+
+        const response = await fetch(
+            `/station-recommendations?${params.toString()}`
+        );
+
+        const data = await response.json();
+
+        if (!response.ok || !data.success) {
+            throw new Error(
+                data.error || "Unable to load station recommendations."
+            );
+        }
+
+        if (!data.stations || data.stations.length === 0) {
+            message.textContent = "";
+            resultsContainer.innerHTML = `
+                <div class="station-empty">
+                    <div class="station-empty-icon">⌖</div>
+                    <strong>No nearby stations found</strong>
+                    <p>Try selecting another location and refreshing your results.</p>
+                </div>
+            `;
+            return;
+        }
+
+        message.textContent =
+            `${data.stations.length} station(s) found for ${vehicleType}.`;
+
+        data.stations.forEach(station => {
+            const card = document.createElement("article");
+            card.className = "station-card";
+
+            const top = document.createElement("div");
+            top.className = "station-card-top";
+
+            const icon = document.createElement("div");
+            icon.className = "station-card-icon";
+            icon.textContent =
+                station.station_type === "EV Charging" ? "⚡" : "⛽";
+
+            const badge = document.createElement("span");
+            badge.className = "station-type-badge";
+            badge.textContent = station.station_type || "Station";
+
+            top.append(icon, badge);
+
+            const title = document.createElement("h3");
+            title.textContent =
+                station.station_name ||
+                station.name ||
+                station.poi?.name ||
+                "Nearby Station";
+
+            const address = document.createElement("p");
+            address.className = "station-address";
+
+            const addressIcon = document.createElement("span");
+            addressIcon.className = "station-address-icon";
+            addressIcon.textContent = "📍";
+
+            const addressText = document.createElement("span");
+            const addressValue =
+                typeof station.address === "string"
+                    ? station.address
+                    : station.address?.freeformAddress ||
+                      station.poi?.address?.freeformAddress ||
+                      station.address?.municipality ||
+                      "Address not available";
+
+            addressText.textContent = addressValue;
+
+            address.append(addressIcon, addressText);
+            card.append(top, title, address);
+            resultsContainer.appendChild(card);
+        });
+
+    } catch (error) {
+        console.error("Station recommendations error:", error);
+
+        message.textContent =
+            error.message || "Could not load station recommendations.";
+    }
+}
+
+window.addEventListener("DOMContentLoaded", function () {
+    const activeTab = document.body.dataset.activeTab || "vehicle";
     switchTab(activeTab);
 });
+

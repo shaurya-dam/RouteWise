@@ -3422,3 +3422,251 @@ footer {
 .step:hover {
     opacity: 0.8;
 }
+
+
+
+/* ============================================================
+   ROUTEWISE — STATION RECOMMENDATIONS
+============================================================ */
+
+.station-page {
+    grid-column: 1 / -1;
+    min-width: 0;
+    padding: 24px;
+    overflow: hidden;
+}
+
+.station-page-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid var(--border);
+}
+
+.station-eyebrow {
+    color: var(--primary);
+    font-size: 9px;
+    font-weight: 900;
+    letter-spacing: 1.2px;
+}
+
+.station-page-header h2 {
+    margin-top: 8px;
+    font-size: clamp(20px, 3vw, 27px);
+    font-weight: 900;
+    letter-spacing: -0.5px;
+}
+
+.station-page-header p {
+    margin-top: 7px;
+    color: var(--muted);
+    font-size: 12px;
+    line-height: 1.6;
+}
+
+.station-header-icon,
+.station-summary-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 46px;
+    height: 46px;
+    border-radius: 12px;
+    background: #e8efe8;
+    color: var(--primary);
+    font-size: 25px;
+}
+
+.station-summary {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-top: 20px;
+    padding: 14px;
+    border: 1px solid #dce8dc;
+    border-radius: 12px;
+    background: #f7faf6;
+}
+
+.station-summary-icon {
+    width: 38px;
+    height: 38px;
+    background: white;
+    border: 1px solid var(--border);
+    font-size: 18px;
+}
+
+.station-summary strong {
+    display: block;
+    font-size: 11px;
+    font-weight: 900;
+}
+
+.station-summary p {
+    margin-top: 4px;
+    color: var(--muted);
+    font-size: 10px;
+    line-height: 1.5;
+}
+
+.station-message {
+    margin-top: 20px;
+    padding: 13px 15px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: #f8fafc;
+    color: var(--muted);
+    font-size: 11px;
+    line-height: 1.6;
+}
+
+.station-message:empty {
+    display: none;
+}
+
+.station-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px;
+    margin-top: 16px;
+}
+
+.station-card {
+    min-width: 0;
+    padding: 17px;
+    border: 1px solid var(--border);
+    border-radius: 13px;
+    background: white;
+    box-shadow: var(--shadow);
+    transition: border-color 0.2s ease, transform 0.2s ease;
+}
+
+.station-card:hover {
+    border-color: #a8c5a8;
+    transform: translateY(-2px);
+}
+
+.station-card-top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.station-card-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 38px;
+    height: 38px;
+    flex-shrink: 0;
+    border-radius: 10px;
+    background: #e8efe8;
+    font-size: 19px;
+}
+
+.station-type-badge {
+    display: inline-block;
+    padding: 6px 8px;
+    border-radius: 999px;
+    background: #e8efe8;
+    color: var(--primary);
+    font-size: 9px;
+    font-weight: 900;
+}
+
+.station-card h3 {
+    margin-top: 14px;
+    overflow-wrap: anywhere;
+    font-size: 14px;
+    line-height: 1.45;
+    font-weight: 900;
+}
+
+.station-address {
+    display: flex;
+    gap: 7px;
+    margin-top: 9px;
+    color: var(--muted);
+    font-size: 11px;
+    line-height: 1.6;
+    overflow-wrap: anywhere;
+}
+
+.station-address-icon {
+    flex-shrink: 0;
+}
+
+.station-empty {
+    grid-column: 1 / -1;
+    padding: 30px 18px;
+    border: 1px dashed #cbd5e1;
+    border-radius: 13px;
+    background: #f8fafc;
+    text-align: center;
+}
+
+.station-empty-icon {
+    margin-bottom: 10px;
+    font-size: 28px;
+}
+
+.station-empty strong {
+    display: block;
+    font-size: 13px;
+}
+
+.station-empty p {
+    margin-top: 6px;
+    color: var(--muted);
+    font-size: 11px;
+    line-height: 1.6;
+}
+
+.secondary-button {
+    min-height: 38px;
+    padding: 0 14px;
+    border: 1px solid var(--border);
+    border-radius: 9px;
+    background: white;
+    color: var(--text);
+    font-family: inherit;
+    font-size: 10px;
+    font-weight: 800;
+    cursor: pointer;
+}
+
+.secondary-button:hover {
+    border-color: #a8c5a8;
+    background: #f7faf6;
+}
+
+.station-actions {
+    margin-top: 8px;
+}
+
+@media (max-width: 600px) {
+    .station-page {
+        padding: 16px;
+    }
+
+    .station-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .station-page-header h2 {
+        font-size: 20px;
+    }
+
+    .station-actions {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .station-actions button {
+        width: 100%;
+    }
+}

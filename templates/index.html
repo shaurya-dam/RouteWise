@@ -1311,8 +1311,88 @@
 </div> <!-- energy-chart -->
 
     </section> <!-- energy-dashboard -->
-    
+    <div class="form-actions" style="margin-top: 24px;">
+    <button
+        type="button"
+        class="primary-button"
+        onclick="switchTab('location')"
+    >
+        Find Nearby Stations →
+    </button>
+</div>
 </div> <!-- tab-energy -->
+
+</div> <!-- tab-energy -->
+
+
+<!-- LOCATION RECOMMENDATIONS -->
+<div id="tab-location" class="tab-content hidden">
+
+    <section class="card station-page">
+
+        <div class="station-page-header">
+            <div>
+                <span class="station-eyebrow">ROUTEWISE • SMART DISCOVERY</span>
+                <h2>Nearby Station Recommendations</h2>
+                <p>Find relevant stations based on your vehicle and location.</p>
+            </div>
+
+            <div class="station-header-icon">⌖</div>
+        </div>
+
+        <div class="station-summary">
+            <div class="station-summary-icon">📍</div>
+            <div>
+                <strong>Selected location</strong>
+                <p>Recommendations use your selected coordinates.</p>
+            </div>
+        </div>
+
+        <div id="stationMessage" class="station-message" role="status">
+            Your recommended stations will appear here.
+        </div>
+
+        <div id="stationResults" class="station-grid"></div>
+
+        <div class="form-actions station-actions">
+            <button
+                type="button"
+                class="secondary-button"
+                onclick="switchTab('energy')">
+                ← Back to Energy
+            </button>
+
+            <button
+                type="button"
+                class="primary-button"
+                onclick="loadStationRecommendations()">
+                Refresh Stations ↻
+            </button>
+        </div>
+
+    </section>
+
+</div>
+
+
+<!-- RESULT -->
+<div id="tab-result" class="tab-content hidden">
+    <section class="card">
+        <h2>RouteWise Results</h2>
+        <p>Review your energy status and nearby station recommendations.</p>
+
+        <button
+            type="button"
+            class="primary-button"
+            onclick="switchTab('location')"
+        >
+            View Station Recommendations →
+        </button>
+    </section>
+</div>
+
+</section> <!-- workspace -->
+</main>
 
 </section> <!-- workspace -->
 </main>

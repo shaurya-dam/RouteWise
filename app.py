@@ -17,7 +17,7 @@ from db import get_available_charging_stations,save_vehicle_data
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 # Your environment file is named 1.env
-load_dotenv(os.path.join(BASE_DIR, "1.env"))
+load_dotenv(os.path.join(BASE_DIR, ".env"))
 
 app = Flask(__name__)
 
@@ -137,8 +137,13 @@ def get_tomtom_fuel_stations(latitude, longitude):
         },
         timeout=20,
     )
+    if not response.ok:
+      app.logger.error(
+        "TomTom EV API failed: HTTP %s - %s",
+        response.status_code,
+        response.text[:500]
+    )
     response.raise_for_status()
-
     stations = []
 
     for item in response.json().get("results", []):
@@ -335,7 +340,7 @@ def test_tomtom():
     if not TOMTOM_API_KEY:
         return jsonify({
             "success": False,
-            "message": "TOMTOM_API_KEY is missing from 1.env.",
+            "message": "TOMTOM_API_KEY is missing from .env.",
         }), 500
 
     try:
@@ -394,6 +399,7 @@ def test_fuel():
 
 @app.route("/fuel-stations")
 def fuel_stations():
+    
     latitude = safe_float(request.args.get("lat")) or DEFAULT_LATITUDE
     longitude = safe_float(request.args.get("lon")) or DEFAULT_LONGITUDE
 
@@ -412,6 +418,75 @@ def fuel_stations():
             "message": str(exc),
             "stations": [],
         }), 500
+
+@app.route("/station-recommendations")
+def station_recommendations():
+    vehicle_type = request.args.get(
+        "vehicle_type", ""
+    ).strip().upper()
+
+    latitude = safe_float(request.args.get("lat"))
+    longitude = safe_float(request.args.get("lon"))
+
+    if vehicle_type not in ("PETROL", "DIESEL", "EV", "HYBRID"):
+        return jsonify({
+            "success": False,
+            "message": "Invalid vehicle type.",
+            "stations": []
+        }), 400
+
+    if latitude is None or longitude is None:
+        return jsonify({
+            "success": False,
+            "message": "Please select your current location first.",
+            "stations": []
+        }), 400
+
+    if not (-90 <= latitude <= 90 and -180 <= longitude <= 180):
+        return jsonify({
+            "success": False,
+            "message": "Invalid location coordinates.",
+            "stations": []
+        }), 400
+
+    try:
+        stations = []
+
+        if vehicle_type in ("PETROL", "DIESEL", "HYBRID"):
+            fuel_stations = get_tomtom_fuel_stations(
+                latitude, longitude
+            )
+
+            for station in fuel_stations:
+                station["station_type"] = "Fuel"
+                stations.append(station)
+
+        if vehicle_type in ("EV", "HYBRID"):
+            ev_stations = get_tomtom_ev_stations(
+                latitude, longitude
+            )
+
+            for station in ev_stations:
+                station["station_type"] = "EV Charging"
+                stations.append(station)
+
+        return jsonify({
+            "success": True,
+            "vehicle_type": vehicle_type,
+            "count": len(stations),
+            "stations": stations
+        })
+
+    except Exception:
+        app.logger.exception(
+            "Station recommendation lookup failed"
+        )
+
+        return jsonify({
+            "success": False,
+            "message": "Unable to load nearby stations. Please try again.",
+            "stations": []
+        }), 502
 
 
 # ============================================================

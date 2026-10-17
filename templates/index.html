@@ -1254,42 +1254,22 @@
         <span>{{ "%.0f"|format(energy_level) }}%</span>
     </div>
 
+    {% if selected_vehicle in ["PETROL", "DIESEL", "HYBRID"] %}
     <div class="energy-metric">
-        <div class="energy-metric-label">
-            <span>
-                {% if selected_vehicle == "EV" %}
-                    Battery remaining
-                {% else %}
-                    {% if selected_vehicle == "HYBRID" %}
-                        Combined energy overview
-                    {% else %}
-                        Fuel remaining
-                    {% endif %}
-                {% endif %}
-            </span>
 
-            <strong>{{ "%.0f"|format(energy_level) }}%</strong>
+        <div class="energy-metric-label">
+            <span>Fuel remaining</span>
+            <strong>{{ "%.0f"|format(fuel) }}%</strong>
         </div>
 
         <div class="energy-track">
-            <div class="energy-fill battery-fill"style="width: {{ energy_width }}%;">
-            </div>
+            <div
+                class="energy-fill fuel-fill"style="width: {{ fuel_width }}%;"
+            ></div>
         </div>
-    </div>
-{% if selected_vehicle in ["PETROL", "DIESEL", "HYBRID"] %}
-<div class="energy-metric">
 
-    <div class="energy-metric-label">
-        <span>Fuel remaining</span>
-        <strong>{{ "%.0f"|format(fuel) }}%</strong>
     </div>
-
-    <div class="energy-track">
-        <div class="energy-fill fuel-fill"style="width: {{ fuel_width }}%;"></div>
-    </div>
-
-</div>
-{% endif %}
+    {% endif %}
 
     {% if selected_vehicle in ["EV", "HYBRID"] %}
     <div class="energy-metric">
@@ -1322,7 +1302,7 @@
 </div>
 </div> <!-- tab-energy -->
 
-</div> <!-- tab-energy -->
+
 
 
 <!-- LOCATION RECOMMENDATIONS -->

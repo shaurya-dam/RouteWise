@@ -165,39 +165,53 @@ public:
 
 
 int main(int argc, char* argv[]) {
+    // 1. Argument Count Validation
     if (argc < 5) {
-        cout << "Usage: ./RouteWiseEngine <Type> <Percent> <Capacity> <Efficiency> [Connector]\n";
+        cout << "Error: Missing parameters!\n";
+        cout << "Usage: ./RouteWiseEngine <Type> <Percent> <Capacity> <Efficiency> [Connector] [FilePath]\n";
         cout << "Example: ./RouteWiseEngine EV 80 40 6 Type-2\n";
         return 1;
     }
 
-    string v_type = argv[1];
-    double percent = stod(argv[2]);
-    double capacity = stod(argv[3]);
-    double efficiency = stod(argv[4]);
-    string connector = (argc >= 6) ? argv[5] : "None";
+    try {
+        // 2. Command Line Arguments Read Karna
+        string v_type = argv[1];
+        double percent = stod(argv[2]);
+        double capacity = stod(argv[3]);
+        double efficiency = stod(argv[4]);
+        
+        string connector = (argc >= 6) ? argv[5] : "None";
+        string filePath = (argc >= 7) ? argv[6] : "stations.txt"; // Dynamic path fallback
 
-    Car* myCar = nullptr;
+        Car* myCar = nullptr;
 
-    if (v_type == "EV") {
-        myCar = new Electric(percent, capacity, efficiency, connector);
-    } 
-    else if (v_type == "PETROL" || v_type == "DIESEL") {
-        myCar = new Petrol(percent, capacity, efficiency);
-    } 
-    else if (v_type == "HYBRID") {
-        myCar = new Hybrid(percent, capacity, efficiency);
-    } 
-    else {
-        cout << "Error: Unknown Vehicle Type passed by Backend!\n";
+        // 3. Case-Insensitive Matching (Upper & Mixed Case Safety)
+        if (v_type == "EV" || v_type == "Electric" || v_type == "ev") {
+            myCar = new Electric(percent, capacity, efficiency, connector);
+        } 
+        else if (v_type == "PETROL" || v_type == "DIESEL" || v_type == "Petrol" || v_type == "Diesel") {
+            myCar = new Petrol(percent, capacity, efficiency);
+        } 
+        else if (v_type == "HYBRID" || v_type == "Hybrid" || v_type == "hybrid") {
+            myCar = new Hybrid(percent, capacity, efficiency);
+        } 
+        else {
+            cout << "Error: Unknown Vehicle Type passed by Backend (" << v_type << ")!\n";
+            return 1;
+        }
+
+        // 4. Engine Run & Execution
+        RouteManager engine;
+        engine.loadStationsFromFile(filePath);
+        engine.planRoute(myCar);
+
+        // Memory Freeing
+        delete myCar;
+        return 0;
+
+    } catch (const exception& e) {
+        // Safe Exception Handling for numeric conversion failures
+        cout << "Error: Invalid numeric input from backend args (" << e.what() << ")\n";
         return 1;
     }
-
-    RouteManager engine;
-    engine.loadStationsFromFile("stations.txt"); // Python will generate this file
-    engine.planRoute(myCar);
-
-    delete myCar;
-    
-    return 0;
 }

@@ -1065,6 +1065,11 @@
         name="longitude"
         value="{{ data.get('longitude', '') }}"
     >
+    <input
+    type="hidden"
+    id="vehicleSafeRange"
+    value="{{ safe_range if safe_range is not none else '' }}"
+>
 
 </div>
 

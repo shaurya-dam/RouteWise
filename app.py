@@ -8,7 +8,7 @@ from dotenv import load_dotenv
 from flask import Flask, jsonify, render_template, request
 
 from db import get_available_charging_stations,save_vehicle_data
-
+from math import radians, sin, cos, sqrt, atan2
 
 # ============================================================
 # CONFIGURATION
@@ -63,7 +63,51 @@ def safe_float(value):
         return float(value)
     except (TypeError, ValueError):
         return None
+def calculate_distance_km(lat1, lon1, lat2, lon2):
+    earth_radius = 6371.0
 
+    lat1, lon1, lat2, lon2 = map(
+        radians, [lat1, lon1, lat2, lon2]
+    )
+
+    dlat = lat2 - lat1
+    dlon = lon2 - lon1
+
+    a = (
+        sin(dlat / 2) ** 2
+        + cos(lat1) * cos(lat2) * sin(dlon / 2) ** 2
+    )
+
+    a = max(0.0, min(1.0, a))
+
+    return 2 * earth_radius * atan2(
+        sqrt(a), sqrt(1 - a)
+    )
+
+
+def rank_stations_by_distance(stations, latitude, longitude):
+    valid_stations = []
+
+    for station in stations:
+        lat = safe_float(station.get("latitude"))
+        lon = safe_float(station.get("longitude"))
+
+        if lat is None or lon is None:
+            continue
+
+        if not (-90 <= lat <= 90 and -180 <= lon <= 180):
+            continue
+
+        station["distance_km"] = round(
+            calculate_distance_km(latitude, longitude, lat, lon),
+            2
+        )
+
+        valid_stations.append(station)
+
+    valid_stations.sort(key=lambda station: station["distance_km"])
+
+    return valid_stations
 
 def validate_data(vehicle_type, form_data):
     """Validate submitted form values without calculating range."""
@@ -117,7 +161,7 @@ def validate_data(vehicle_type, form_data):
 
     return errors
 
-def get_tomtom_fuel_stations(latitude, longitude):
+def get_tomtom_fuel_stations(latitude, longitude, radius_km=10):
     """Find nearby fuel stations using TomTom."""
 
     if not TOMTOM_API_KEY:
@@ -131,8 +175,8 @@ def get_tomtom_fuel_stations(latitude, longitude):
             "key": TOMTOM_API_KEY,
             "lat": latitude,
             "lon": longitude,
-            "radius": 10000,
-            "limit": 10,
+           "radius": int(min(max(radius_km, 0.1), 50) * 1000),
+"limit": 100,
             "countrySet": "IN",
         },
         timeout=20,
@@ -161,7 +205,7 @@ def get_tomtom_fuel_stations(latitude, longitude):
     return stations
 
 
-def get_tomtom_ev_stations(latitude, longitude):
+def get_tomtom_ev_stations(latitude, longitude, radius_km=10):
     """Find nearby EV charging stations using TomTom."""
 
     if not TOMTOM_API_KEY:
@@ -178,8 +222,8 @@ def get_tomtom_ev_stations(latitude, longitude):
             "key": TOMTOM_API_KEY,
             "lat": latitude,
             "lon": longitude,
-            "radius": 10000,
-            "limit": 10,
+            "radius": int(min(max(radius_km, 0.1), 50) * 1000),
+"limit": 100,
             "countrySet": "IN",
         },
         timeout=20,
@@ -419,6 +463,7 @@ def fuel_stations():
             "stations": [],
         }), 500
 
+
 @app.route("/station-recommendations")
 def station_recommendations():
     vehicle_type = request.args.get(
@@ -427,6 +472,7 @@ def station_recommendations():
 
     latitude = safe_float(request.args.get("lat"))
     longitude = safe_float(request.args.get("lon"))
+    range_km = safe_float(request.args.get("range_km"))
 
     if vehicle_type not in ("PETROL", "DIESEL", "EV", "HYBRID"):
         return jsonify({
@@ -449,12 +495,19 @@ def station_recommendations():
             "stations": []
         }), 400
 
+    if range_km is None or range_km <= 0:
+        return jsonify({
+            "success": False,
+            "message": "Please calculate a valid vehicle range first.",
+            "stations": []
+        }), 400
+
     try:
         stations = []
 
         if vehicle_type in ("PETROL", "DIESEL", "HYBRID"):
             fuel_stations = get_tomtom_fuel_stations(
-                latitude, longitude
+                latitude, longitude, range_km
             )
 
             for station in fuel_stations:
@@ -463,16 +516,37 @@ def station_recommendations():
 
         if vehicle_type in ("EV", "HYBRID"):
             ev_stations = get_tomtom_ev_stations(
-                latitude, longitude
+                latitude, longitude, range_km
             )
 
             for station in ev_stations:
                 station["station_type"] = "EV Charging"
                 stations.append(station)
 
+        app.logger.info("Vehicle range received: %s km", range_km)
+
+        for station in stations:
+                    app.logger.info(
+        "Station: %s | Distance: %s km",
+        station.get("name"),
+        station.get("distance_km")
+    )   
+
+        # Calculate distances and sort nearest station first
+        stations = rank_stations_by_distance(
+            stations, latitude, longitude
+        )
+
+        # Keep only stations within the usable vehicle range
+        stations = [
+            station for station in stations
+            if station["distance_km"] <= range_km
+        ]
+
         return jsonify({
             "success": True,
             "vehicle_type": vehicle_type,
+            "range_km": range_km,
             "count": len(stations),
             "stations": stations
         })
@@ -487,7 +561,6 @@ def station_recommendations():
             "message": "Unable to load nearby stations. Please try again.",
             "stations": []
         }), 502
-
 
 # ============================================================
 # CHARGING STATION ROUTE

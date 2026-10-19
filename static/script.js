@@ -201,6 +201,8 @@ async function loadStationRecommendations() {
 
     const latitude = document.getElementById("latitude")?.value;
     const longitude = document.getElementById("longitude")?.value;
+    const rangeInput = document.getElementById("vehicleSafeRange");
+    const rangeKm = Number(rangeInput?.value);
 
     const vehicleInput = document.querySelector(
         'input[name="vehicle_type"]:checked'
@@ -226,11 +228,19 @@ async function loadStationRecommendations() {
     message.textContent = "Finding nearby stations…";
 
     try {
-        const params = new URLSearchParams({
-            vehicle_type: vehicleType,
-            lat: latitude,
-            lon: longitude
-        });
+if (!rangeInput || !Number.isFinite(rangeKm) || rangeKm <= 0) {
+    message.textContent =
+        "Please calculate a valid vehicle range first.";
+    return;
+}
+
+const params = new URLSearchParams({
+    vehicle_type: vehicleType,
+    lat: latitude,
+    lon: longitude,
+    range_km: String(rangeKm)
+});
+        
 
         const response = await fetch(
             `/station-recommendations?${params.toString()}`
@@ -240,7 +250,7 @@ async function loadStationRecommendations() {
 
         if (!response.ok || !data.success) {
             throw new Error(
-                data.error || "Unable to load station recommendations."
+              data.message || data.error || "Unable to load station recommendations."
             );
         }
 

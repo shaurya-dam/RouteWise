@@ -22,68 +22,13 @@ load_dotenv(os.path.join(BASE_DIR, ".env"))
 app = Flask(__name__)
 
 TOMTOM_API_KEY = os.getenv("TOMTOM_API_KEY")
+TOMTOM_MAP_KEY = os.getenv("TOMTOM_MAP_KEY")
 
 BACKEND_DIR = os.path.join(BASE_DIR, "backend")
 CPP_EXE = os.path.join(BACKEND_DIR, "RouteWiseEngine.exe")
 
 DEFAULT_LATITUDE = 30.3165
 DEFAULT_LONGITUDE = 78.0322
-DEFAULT_CITY = "Dehradun"
-
-
-
-# ============================================================
-# MYSQL EV CHARGING STATION HELPER
-# ============================================================
-
-def get_stations_safely(city=DEFAULT_CITY):
-    try:
-        stations = get_available_charging_stations(city)
-        return stations, None
-
-    except Exception as exc:
-        app.logger.exception(
-            "Unable to retrieve charging stations from MySQL"
-        )
-        return [], str(exc)
-
-
-
-# ============================================================
-# HELPER FUNCTIONS
-# ============================================================
-
-
-
-def safe_float(value):
-    """Convert a value to float, or return None if invalid."""
-    try:
-        if value is None or str(value).strip() == "":
-            return None
-        return float(value)
-    except (TypeError, ValueError):
-        return None
-def calculate_distance_km(lat1, lon1, lat2, lon2):
-    earth_radius = 6371.0
-
-    lat1, lon1, lat2, lon2 = map(
-        radians, [lat1, lon1, lat2, lon2]
-    )
-
-    dlat = lat2 - lat1
-    dlon = lon2 - lon1
-
-    a = (
-        sin(dlat / 2) ** 2
-        + cos(lat1) * cos(lat2) * sin(dlon / 2) ** 2
-    )
-
-    a = max(0.0, min(1.0, a))
-
-    return 2 * earth_radius * atan2(
-        sqrt(a), sqrt(1 - a)
-    )
-
 
 def rank_stations_by_distance(stations, latitude, longitude):
     valid_stations = []
@@ -247,8 +192,65 @@ def get_tomtom_ev_stations(latitude, longitude, radius_km=10):
         })
 
     return stations
+# ============================================================
+# HELPER FUNCTIONS
+# ============================================================
 
 
+
+def safe_float(value):
+    """Convert a value to float, or return None if invalid."""
+    try:
+        if value is None or str(value).strip() == "":
+            return None
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+def calculate_distance_km(lat1, lon1, lat2, lon2):
+    earth_radius = 6371.0
+
+    lat1, lon1, lat2, lon2 = map(
+        radians, [lat1, lon1, lat2, lon2]
+    )
+
+    dlat = lat2 - lat1
+    dlon = lon2 - lon1
+
+    a = (
+        sin(dlat / 2) ** 2
+        + cos(lat1) * cos(lat2) * sin(dlon / 2) ** 2
+    )
+
+    a = max(0.0, min(1.0, a))
+
+    return 2 * earth_radius * atan2(
+        sqrt(a), sqrt(1 - a)
+    )
+
+
+def rank_stations_by_distance(stations, latitude, longitude):
+    valid_stations = []
+
+    for station in stations:
+        lat = safe_float(station.get("latitude"))
+        lon = safe_float(station.get("longitude"))
+
+        if lat is None or lon is None:
+            continue
+
+        if not (-90 <= lat <= 90 and -180 <= lon <= 180):
+            continue
+
+        station["distance_km"] = round(
+            calculate_distance_km(latitude, longitude, lat, lon),
+            2
+        )
+
+        valid_stations.append(station)
+
+    valid_stations.sort(key=lambda station: station["distance_km"])
+
+    return valid_stations
 
 # ============================================================
 # C++ ENGINE INTEGRATION
@@ -523,19 +525,28 @@ def station_recommendations():
                 station["station_type"] = "EV Charging"
                 stations.append(station)
 
+
         app.logger.info("Vehicle range received: %s km", range_km)
 
+# Calculate distances and sort nearest station first
+        stations = rank_stations_by_distance(
+    stations, latitude, longitude
+)
+
+# Keep only stations within the usable vehicle range
+        stations = [
+    station for station in stations
+    if station["distance_km"] <= range_km
+]
+
+# Log the calculated distances
         for station in stations:
-                    app.logger.info(
+               app.logger.info(
         "Station: %s | Distance: %s km",
         station.get("name"),
         station.get("distance_km")
-    )   
+    )
 
-        # Calculate distances and sort nearest station first
-        stations = rank_stations_by_distance(
-            stations, latitude, longitude
-        )
 
         # Keep only stations within the usable vehicle range
         stations = [
@@ -585,6 +596,107 @@ def charging_stations():
         "stations": stations,
     })
 
+
+@app.route("/calculate-route", methods=["GET"])
+def calculate_route():
+    origin_lat = safe_float(request.args.get("origin_lat"))
+    origin_lon = safe_float(request.args.get("origin_lon"))
+    dest_lat = safe_float(request.args.get("dest_lat"))
+    dest_lon = safe_float(request.args.get("dest_lon"))
+
+    coordinates = [origin_lat, origin_lon, dest_lat, dest_lon]
+
+    if any(value is None for value in coordinates):
+        return jsonify({
+            "success": False,
+            "message": "Origin and destination coordinates are required."
+        }), 400
+
+    if not (
+        -90 <= origin_lat <= 90
+        and -90 <= dest_lat <= 90
+        and -180 <= origin_lon <= 180
+        and -180 <= dest_lon <= 180
+    ):
+        return jsonify({
+            "success": False,
+            "message": "Invalid coordinates."
+        }), 400
+
+    if not TOMTOM_API_KEY:
+        return jsonify({
+            "success": False,
+            "message": "TomTom API key is missing."
+        }), 500
+
+    locations = (
+        f"{origin_lat},{origin_lon}:"
+        f"{dest_lat},{dest_lon}"
+    )
+
+    url = (
+        "https://api.tomtom.com/routing/1/"
+        f"calculateRoute/{locations}/json"
+    )
+
+    try:
+        response = requests.get(
+            url,
+            params={
+                "key": TOMTOM_API_KEY,
+                "travelMode": "car",
+                "routeType": "fastest",
+                "traffic": "true",
+                "routeRepresentation": "polyline"
+            },
+            timeout=20
+        )
+
+        response.raise_for_status()
+        result = response.json()
+
+        routes = result.get("routes", [])
+
+        if not routes:
+            return jsonify({
+                "success": False,
+                "message": "TomTom did not return a route."
+            }), 502
+
+        route = routes[0]
+        summary = route.get("summary", {})
+        points = []
+
+        for leg in route.get("legs", []):
+            for point in leg.get("points", []):
+                points.append({
+                    "lat": point["latitude"],
+                    "lon": point["longitude"]
+                })
+
+        return jsonify({
+            "success": True,
+            "distance_km": round(
+                summary.get("lengthInMeters", 0) / 1000, 2
+            ),
+            "travel_time_minutes": round(
+                summary.get("travelTimeInSeconds", 0) / 60
+            ),
+            "points": points
+        })
+
+    except requests.RequestException:
+        app.logger.exception("TomTom routing request failed")
+        return jsonify({
+            "success": False,
+            "message": "TomTom routing request failed. Check the API key and Routing API access."
+        }), 502
+    except (ValueError, KeyError, TypeError):
+        app.logger.exception("Invalid TomTom routing response")
+        return jsonify({
+            "success": False,
+            "message": "Unable to process the route response."
+        }), 502
 
 # ============================================================
 # HOME PAGE
@@ -669,7 +781,8 @@ def index():
         range_status=range_status,
         stations=stations,
          show_energy=success,
-         active_tab=active_tab
+         active_tab=active_tab,
+         tomtom_map_key=TOMTOM_MAP_KEY
     )
 
 

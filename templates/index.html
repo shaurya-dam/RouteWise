@@ -16,6 +16,14 @@
 
 <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 
+<link
+    rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+/>
+<script
+    src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js">
+</script>
+
+
 </head>
 
 
@@ -28,6 +36,8 @@
 ========================================================== -->
 
 <header class="header">
+    
+
 
     <div class="header-inner">
 
@@ -1370,23 +1380,188 @@
 
 
 <!-- RESULT -->
-<div id="tab-result" class="tab-content hidden">
-    <section class="card">
-        <h2>RouteWise Results</h2>
-        <p>Review your energy status and nearby station recommendations.</p>
 
-        <button
-            type="button"
-            class="primary-button"
-            onclick="switchTab('location')"
-        >
-            View Station Recommendations →
-        </button>
-    </section>
+
+<!-- RESULT DASHBOARD -->
+<div id="tab-result" class="tab-content hidden">
+
+    <div class="result-layout">
+
+        <!-- LEFT SIDE: ENERGY + STATION -->
+        <div class="result-sidebar">
+
+            <!-- RANGE CARD -->
+            <section class="card result-range-card">
+                <div class="result-range-info">
+                    <span class="result-label">ESTIMATED USABLE RANGE</span>
+
+                    <div class="result-range-value">
+                        {% if safe_range is not none %}
+                            {{ "%.1f"|format(safe_range) }}
+                        {% else %}
+                            —
+                        {% endif %}
+                        <small>km</small>
+                    </div>
+
+                    <p>Estimated distance available to drive</p>
+                </div>
+
+                {% if selected_vehicle == "PETROL" %}
+                    {% set energy_percent = data.get('fuel_percent', 0)|float %}
+                {% elif selected_vehicle == "DIESEL" %}
+                    {% set energy_percent = data.get('fuel_percent', 0)|float %}
+                {% elif selected_vehicle == "EV" %}
+                    {% set energy_percent = data.get('battery_percent', 0)|float %}
+                {% elif selected_vehicle == "HYBRID" %}
+                    {% set energy_percent = data.get('battery_percent', 0)|float %}
+                {% else %}
+                    {% set energy_percent = 0 %}
+                {% endif %}
+
+                <div class="result-energy-ring"
+                     style="--energy-value: {{ [[energy_percent, 100]|min, 0]|max }}%;">
+                    <div class="result-ring-inner">
+                        <strong>{{ "%.0f"|format(energy_percent) }}%</strong>
+                        <span>Energy</span>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ENERGY LEVEL CARD -->
+            <section class="card result-energy-card">
+                <div class="result-section-heading">
+                    <div>
+                        <h2>Energy Level</h2>
+                        <p>Current available energy</p>
+                    </div>
+
+                    <span class="energy-status-badge">
+                        {{ range_status or 'Unavailable' }}
+                    </span>
+                </div>
+
+                {% if selected_vehicle in ["PETROL", "DIESEL", "HYBRID"] %}
+                <div class="result-energy-row">
+                    <div class="result-energy-label">
+                        <span>Fuel remaining</span>
+                        <strong>{{ data.get('fuel_percent', 0) }}%</strong>
+                    </div>
+                    <div class="result-progress">
+                        <div class="result-progress-fill fuel-fill"style="width: {{ [[data.get('fuel_percent', 0)|float, 100]|min, 0]|max }}%;">
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+
+                {% if selected_vehicle in ["EV", "HYBRID"] %}
+                <div class="result-energy-row">
+                    <div class="result-energy-label">
+                        <span>Battery remaining</span>
+                        <strong>{{ data.get('battery_percent', 0) }}%</strong>
+                    </div>
+                    <div class="result-progress">
+                        <div class="result-progress-fill battery-fill"style="width: {{ [[data.get('battery_percent', 0)|float, 100]|min, 0]|max }}%;">
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+            </section>
+
+            <!-- SELECTED STATION CARD -->
+            <section class="card result-station-card">
+                <div class="result-section-heading">
+                    <div>
+                        <span class="result-label">YOUR DESTINATION</span>
+                        <h2>Selected Station</h2>
+                    </div>
+                    <span class="result-station-icon">⌖</span>
+                </div>
+
+                <h3 id="resultStationName">No station selected</h3>
+
+                <p id="resultStationAddress">
+                    Select a station from Location Recommendations.
+                </p>
+
+                <div class="result-station-details">
+                    <div>
+                        <span>Distance</span>
+                        <strong id="resultStationDistance">— km</strong>
+                    </div>
+
+                    <div>
+                        <span>Station type</span>
+                        <strong id="resultStationType">—</strong>
+                    </div>
+                </div>
+            </section>
+
+        </div>
+
+        <!-- RIGHT SIDE: MAP -->
+        <section class="card result-map-panel">
+
+            <div class="result-map-heading">
+                <div>
+                    <span class="result-label">NAVIGATION</span>
+                    <h2>Route Map</h2>
+                    <p>Your location to the selected station</p>
+                </div>
+
+                <span class="result-map-badge">DIRECTIONS</span>
+            </div>
+
+
+<div
+    id="resultMap"
+    class="result-map"
+    data-map-key="{{ tomtom_map_key }}"
+    role="application"
+    aria-label="Route map showing your location and selected station">
 </div>
 
-</section> <!-- workspace -->
-</main>
+<p id="routeStatus" role="status">
+    Select a station to calculate your route.
+</p>
+
+<div class="route-summary">
+    <span>Road distance: <strong id="routeDistance">—</strong></span>
+    <span>Estimated time: <strong id="routeDuration">—</strong></span>
+</div>
+
+
+            <a id="openDirections"
+               class="primary-button result-directions-button"
+               href="#"
+               target="_blank"
+               rel="noopener noreferrer"
+               hidden>
+                Open Directions ↗
+            </a>
+
+        </section>
+
+    </div>
+
+    <!-- BOTTOM NAVIGATION -->
+    <div class="result-navigation">
+        <button type="button"
+                class="secondary-button"
+                onclick="switchTab('location')">
+            ← Back to Stations
+        </button>
+
+        <button type="button"
+                class="secondary-button"
+                onclick="switchTab('energy')">
+            ← Back to Energy
+        </button>
+    </div>
+
+</div>
+<!-- END RESULT DASHBOARD -->
+
 
 </section> <!-- workspace -->
 </main>

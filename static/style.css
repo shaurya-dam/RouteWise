@@ -3670,3 +3670,963 @@ footer {
         width: 100%;
     }
 }
+
+
+
+/* ==========================================
+   ROUTEWISE — RESULT DASHBOARD REDESIGN
+========================================== */
+
+#tab-result {
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+}
+
+/* Two-column layout */
+#tab-result .result-layout {
+    display: grid;
+    grid-template-columns: minmax(360px, 0.9fr) minmax(0, 1.5fr);
+    gap: 22px;
+    align-items: stretch;
+    width: 100%;
+}
+
+#tab-result .result-sidebar {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    min-width: 0;
+}
+
+/* Common cards */
+#tab-result .result-layout > .card,
+#tab-result .result-sidebar > .card {
+    min-width: 0;
+    box-sizing: border-box;
+    padding: 24px;
+    border: 1px solid #e0e8df;
+    border-radius: 18px;
+    background: #fff;
+    box-shadow: 0 5px 18px rgba(37, 66, 40, 0.045);
+}
+
+/* Range card */
+#tab-result .result-range-card {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    background: linear-gradient(120deg, #f1f7f0, #ffffff);
+}
+
+#tab-result .result-range-info {
+    flex: 1;
+    min-width: 0;
+}
+
+#tab-result .result-label {
+    display: block;
+    color: #607d63;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: 1.1px;
+    line-height: 1.6;
+}
+
+#tab-result .result-range-value {
+    margin: 14px 0 5px;
+    color: #325b33;
+    font-size: clamp(36px, 3vw, 54px);
+    font-weight: 800;
+    line-height: 1.1;
+    overflow-wrap: anywhere;
+}
+
+#tab-result .result-range-value small {
+    font-size: 17px;
+    font-weight: 650;
+}
+
+#tab-result .result-range-info p,
+#tab-result .result-section-heading p,
+#tab-result .result-map-heading p {
+    margin: 6px 0 0;
+    color: #64748b;
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+/* Circular energy indicator */
+#tab-result .result-energy-ring {
+    --energy-value: 0%;
+    display: grid;
+    place-items: center;
+    flex-shrink: 0;
+    width: 112px;
+    height: 112px;
+    border-radius: 50%;
+    background: conic-gradient(
+        #d97706 var(--energy-value),
+        #e5e7eb var(--energy-value)
+    );
+    position: relative;
+}
+
+#tab-result .result-ring-inner {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 88px;
+    height: 88px;
+    border-radius: 50%;
+    background: #fff;
+}
+
+#tab-result .result-ring-inner strong {
+    color: #172033;
+    font-size: 23px;
+    font-weight: 800;
+}
+
+#tab-result .result-ring-inner span {
+    margin-top: 3px;
+    color: #64748b;
+    font-size: 12px;
+}
+
+/* Section headings */
+#tab-result .result-section-heading,
+#tab-result .result-map-heading {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 22px;
+}
+
+#tab-result .result-section-heading h2,
+#tab-result .result-map-heading h2 {
+    margin: 5px 0 0;
+    color: #172033;
+    font-size: 20px;
+    line-height: 1.3;
+}
+
+/* Energy progress bars */
+#tab-result .result-energy-row {
+    margin-top: 20px;
+}
+
+#tab-result .result-energy-label {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 10px;
+}
+
+#tab-result .result-energy-label span {
+    color: #475569;
+    font-size: 14px;
+}
+
+#tab-result .result-energy-label strong {
+    color: #172033;
+    font-size: 14px;
+}
+
+#tab-result .result-progress {
+    width: 100%;
+    height: 9px;
+    overflow: hidden;
+    border-radius: 20px;
+    background: #e5e7eb;
+}
+
+#tab-result .result-progress-fill {
+    height: 100%;
+    max-width: 100%;
+    border-radius: inherit;
+    transition: width 500ms ease;
+}
+
+#tab-result .fuel-fill {
+    background: #16a34a;
+}
+
+#tab-result .battery-fill {
+    background: #0d9488;
+}
+
+/* Selected station */
+#tab-result #resultStationName {
+    margin: 0 0 8px;
+    color: #325b33;
+    font-size: 19px;
+    line-height: 1.4;
+    overflow-wrap: anywhere;
+}
+
+#tab-result #resultStationAddress {
+    margin: 0;
+    color: #64748b;
+    font-size: 13px;
+    line-height: 1.6;
+    overflow-wrap: anywhere;
+}
+
+#tab-result .result-station-icon {
+    display: grid;
+    place-items: center;
+    flex-shrink: 0;
+    width: 40px;
+    height: 40px;
+    border-radius: 12px;
+    background: #edf5ed;
+    color: #325b33;
+    font-size: 22px;
+}
+
+#tab-result .result-station-details {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-top: 18px;
+    padding-top: 16px;
+    border-top: 1px solid #edf0f3;
+}
+
+#tab-result .result-station-details > div {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
+}
+
+#tab-result .result-station-details span {
+    color: #64748b;
+    font-size: 12px;
+}
+
+#tab-result .result-station-details strong {
+    color: #325b33;
+    font-size: 14px;
+    overflow-wrap: anywhere;
+}
+
+/* Map panel */
+#tab-result .result-map-panel {
+    display: flex;
+    flex-direction: column;
+}
+
+#tab-result .result-map-badge {
+    padding: 7px 10px;
+    flex-shrink: 0;
+    border: 1px solid #b8edc7;
+    border-radius: 20px;
+    background: #f0fdf4;
+    color: #15803d;
+    font-size: 10px;
+    font-weight: 800;
+}
+
+#tab-result .result-map {
+    position: relative;
+    flex: 1;
+    min-height: 580px;
+    width: 100%;
+    overflow: hidden;
+    border-radius: 14px;
+    background: #eef3ee;
+}
+
+#tab-result .result-map iframe,
+#tab-result .result-map .leaflet-container {
+    width: 100%;
+    height: 100%;
+    min-height: 580px;
+    border: 0;
+}
+
+#tab-result .result-map-placeholder {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 580px;
+    padding: 24px;
+    box-sizing: border-box;
+    text-align: center;
+}
+
+#tab-result .result-map-pin {
+    display: grid;
+    place-items: center;
+    width: 52px;
+    height: 52px;
+    border-radius: 16px;
+    background: #dcebdd;
+    color: #325b33;
+    font-size: 27px;
+}
+
+#tab-result .result-map-placeholder h3 {
+    margin: 16px 0 4px;
+    color: #325b33;
+    font-size: 20px;
+}
+
+#tab-result .result-map-placeholder p {
+    max-width: 300px;
+    color: #64748b;
+    font-size: 13px;
+    line-height: 1.6;
+}
+
+#tab-result .result-directions-button {
+    align-self: flex-start;
+    margin-top: 16px;
+    text-decoration: none;
+}
+
+/* Bottom buttons */
+#tab-result .result-navigation {
+    display: flex;
+    justify-content: space-between;
+    gap: 12px;
+    margin-top: 20px;
+}
+
+/* Responsive layout */
+@media (max-width: 1000px) {
+    #tab-result .result-layout {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    #tab-result .result-map {
+        min-height: 430px;
+    }
+
+    #tab-result .result-map-placeholder,
+    #tab-result .result-map iframe,
+    #tab-result .result-map .leaflet-container {
+        min-height: 430px;
+    }
+}
+
+@media (max-width: 520px) {
+    #tab-result .result-layout > .card,
+    #tab-result .result-sidebar > .card {
+        padding: 17px;
+    }
+
+    #tab-result .result-range-card {
+        align-items: flex-start;
+    }
+
+    #tab-result .result-energy-ring {
+        width: 82px;
+        height: 82px;
+    }
+
+    #tab-result .result-ring-inner {
+        width: 65px;
+        height: 65px;
+    }
+
+    #tab-result .result-ring-inner strong {
+        font-size: 17px;
+    }
+
+    #tab-result .result-navigation {
+        flex-direction: column;
+    }
+
+    #tab-result .result-navigation button {
+        width: 100%;
+    }
+
+    #tab-result .result-map {
+        min-height: 350px;
+    }
+
+    #tab-result .result-map-placeholder,
+    #tab-result .result-map iframe,
+    #tab-result .result-map .leaflet-container {
+        min-height: 350px;
+    }
+}
+/* Station card typography correction */
+.station-card .station-distance {
+    font-size: 13px;
+    line-height: 1.5;
+    color: var(--text);
+    margin-top: 8px;
+}
+
+.station-card .station-address {
+    font-size: 11px;
+    line-height: 1.6;
+}
+
+.station-card h3 {
+    font-size: 14px;
+    line-height: 1.45;
+}
+
+.station-card .station-type-badge {
+    font-size: 9px;
+}
+
+.station-card button {
+    font-size: 10px;
+}
+
+
+.station-name-link {
+    cursor: pointer;
+    transition: color 0.2s ease;
+}
+
+.station-name-link:hover {
+    color: #325b33;
+    text-decoration: underline;
+}
+
+.station-name-link:focus-visible {
+    outline: 2px solid #325b33;
+    outline-offset: 4px;
+    border-radius: 3px;
+}
+
+
+/* =====================================================
+   ROUTEWISE — RESPONSIVE DESIGN
+   Desktop, laptop, tablet and mobile
+===================================================== */
+
+/* Prevent width and padding from causing overflow */
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+}
+
+html {
+    width: 100%;
+    min-width: 0;
+    scroll-behavior: smooth;
+}
+
+body {
+    width: 100%;
+    min-width: 0;
+    margin: 0;
+    overflow-x: hidden;
+}
+
+img,
+video,
+iframe {
+    max-width: 100%;
+}
+
+/* Let major page sections shrink with the screen */
+.container,
+.page-container,
+.workspace,
+.main-content,
+.content-wrapper,
+.dashboard,
+.card {
+    min-width: 0;
+    max-width: 100%;
+}
+
+/* Forms should fit their containers */
+input,
+select,
+textarea {
+    max-width: 100%;
+    min-width: 0;
+}
+
+button {
+    max-width: 100%;
+    overflow-wrap: anywhere;
+}
+
+/* Station cards should never overflow */
+.station-grid {
+    display: grid;
+    grid-template-columns:
+        repeat(auto-fit, minmax(min(100%, 240px), 1fr));
+    gap: 16px;
+    width: 100%;
+}
+
+.station-card {
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+/* Keep the route map responsive */
+#tab-result .result-map {
+    width: 100%;
+    min-width: 0;
+    min-height: 350px;
+}
+
+/* Tablets */
+@media (max-width: 900px) {
+    .workspace {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .stepper {
+        gap: 8px;
+        flex-wrap: wrap;
+    }
+
+    .card {
+        padding: 20px;
+    }
+
+    .form-actions {
+        flex-wrap: wrap;
+    }
+
+    .form-actions button {
+        flex: 1 1 180px;
+    }
+}
+
+/* Mobile phones */
+@media (max-width: 600px) {
+    body {
+        font-size: 14px;
+    }
+
+    .container,
+    .page-container,
+    .main-content,
+    .content-wrapper {
+        width: 100%;
+        max-width: 100%;
+        padding-left: 12px;
+        padding-right: 12px;
+    }
+
+    .card {
+        padding: 14px;
+        border-radius: 12px;
+    }
+
+    .stepper {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 8px;
+    }
+
+    .step {
+        min-width: 0;
+        text-align: center;
+    }
+
+    .form-grid,
+    .vehicle-grid,
+    .energy-grid {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .form-actions {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    .form-actions button,
+    .primary-button,
+    .secondary-button {
+        width: 100%;
+        min-height: 44px;
+    }
+
+    #tab-result .result-map,
+    #tab-result .result-map .leaflet-container {
+        min-height: 350px;
+    }
+
+    .station-grid {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
+
+/* =====================================================
+   ROUTEWISE — FINAL RESPONSIVE FIX
+   Add at the VERY END of style.css
+===================================================== */
+
+html,
+body {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+}
+
+body {
+    overflow-x: clip;
+}
+
+.page,
+.header-inner {
+    width: min(1200px, calc(100% - 44px));
+    min-width: 0;
+}
+
+.workspace,
+.preview-column,
+.card,
+.form-card,
+.station-page,
+#tab-result,
+#tab-result .result-layout,
+#tab-result .result-sidebar {
+    min-width: 0;
+    max-width: 100%;
+}
+
+img,
+iframe,
+video,
+input,
+select,
+textarea {
+    max-width: 100%;
+}
+
+.vehicle-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.field-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+#tab-result .result-layout {
+    grid-template-columns:
+        minmax(0, 0.9fr) minmax(0, 1.5fr);
+}
+
+#tab-result .result-map {
+    width: 100%;
+    min-width: 0;
+}
+
+/* Tablets and smaller laptops */
+@media (max-width: 950px) {
+    .workspace {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .preview-column {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    #tab-result .result-layout {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .vehicle-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+/* Mobile phones */
+@media (max-width: 700px) {
+    .page,
+    .header-inner {
+        width: calc(100% - 24px);
+    }
+
+    .header {
+        height: auto;
+        min-height: 60px;
+    }
+
+    .header-inner {
+        min-height: 60px;
+        padding: 10px 0;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    nav {
+        display: none;
+    }
+
+    .online {
+        margin-left: auto;
+    }
+
+    .hero {
+        display: block;
+        padding-top: 22px;
+    }
+
+    .hero h1 {
+        font-size: clamp(23px, 6vw, 28px);
+        overflow-wrap: anywhere;
+    }
+
+    .hero p {
+        font-size: 12px;
+    }
+
+    /* Keep all four steps readable without separator overflow */
+    .stepper {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        overflow: visible;
+    }
+
+    .step {
+        white-space: normal;
+        font-size: 10px;
+    }
+
+    .step-line {
+        display: none;
+    }
+
+    .form-card,
+    .preview-card {
+        padding: 14px;
+    }
+
+    .vehicle-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .field-grid {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .field.full {
+        grid-column: auto;
+    }
+
+    .location-option {
+        flex-wrap: wrap;
+        padding: 12px;
+    }
+
+    .location-option-content {
+        flex: 1 1 150px;
+    }
+
+    .location-action {
+        width: 100%;
+        white-space: normal;
+        min-height: 42px;
+    }
+
+    .vehicle-model-field {
+        padding: 12px;
+        gap: 10px;
+    }
+
+    .form-actions {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .form-actions button,
+    .primary-button,
+    .secondary-button {
+        width: 100%;
+        min-height: 44px;
+    }
+
+    .preview-column {
+        display: block;
+    }
+
+    .station-page {
+        padding: 14px;
+    }
+
+    .station-page-header {
+        flex-wrap: wrap;
+        gap: 12px;
+    }
+
+    .station-grid {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .station-card {
+        padding: 14px;
+    }
+
+    .energy-dashboard {
+        padding: 16px;
+    }
+
+    .range-hero {
+        gap: 10px;
+        padding: 14px 10px;
+    }
+
+    #tab-result .result-layout > .card,
+    #tab-result .result-sidebar > .card {
+        padding: 16px;
+    }
+
+    #tab-result .result-range-card {
+        flex-wrap: wrap;
+    }
+
+    #tab-result .result-map,
+    #tab-result .result-map iframe,
+    #tab-result .result-map .leaflet-container,
+    #tab-result .result-map-placeholder {
+        min-height: 350px;
+    }
+
+    #tab-result .result-station-details {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    #tab-result .result-navigation {
+        flex-direction: column;
+    }
+
+    #tab-result .result-navigation button {
+        width: 100%;
+        min-height: 44px;
+    }
+}
+
+/* Very narrow phones */
+@media (max-width: 380px) {
+    .page,
+    .header-inner {
+        width: calc(100% - 20px);
+    }
+
+    .vehicle-grid {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .energy-details {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    #tab-result .result-energy-label {
+        flex-wrap: wrap;
+    }
+
+    .range-ring {
+        width: 72px;
+        height: 72px;
+    }
+}
+
+
+
+
+
+/* =====================================================
+   ROUTEWISE — WIDER RESULT MAP
+===================================================== */
+
+/* Expand the result dashboard horizontally on desktop */
+@media (min-width: 1001px) {
+    #tab-result {
+        width: calc(100vw - 80px);
+        max-width: none;
+    }
+
+    #tab-result .result-layout {
+        width: 100%;
+        grid-template-columns:
+            minmax(320px, 0.75fr)
+            minmax(0, 1.65fr);
+        gap: 24px;
+    }
+
+    #tab-result .result-map-panel {
+        min-width: 0;
+    }
+
+    #tab-result .result-map {
+        width: 100%;
+        min-width: 0;
+    }
+
+    #tab-result .result-map iframe,
+    #tab-result .result-map .leaflet-container {
+        width: 100%;
+    }
+}
+
+/* Keep the existing responsive layout on smaller screens */
+@media (max-width: 1000px) {
+    #tab-result {
+        width: 100%;
+        max-width: 100%;
+    }
+
+    #tab-result .result-layout {
+        grid-template-columns: minmax(0, 1fr);
+    }
+}
+
+/* =====================================================
+   ROUTEWISE — ROAD ROUTE STATUS BELOW MAP
+===================================================== */
+
+#tab-result .result-map-panel #routeStatus,
+#tab-result .result-map-panel .route-status,
+#tab-result .result-map-panel .route-info {
+    box-sizing: border-box;
+    margin-top: 12px;
+    padding: 14px 16px;
+    border: 1px solid #e0e8df;
+    border-radius: 12px;
+    background: #f7faf6;
+    color: #475569;
+    font-family: Inter, Arial, Helvetica, sans-serif;
+    font-size: 13px;
+    font-weight: 400;
+    line-height: 1.7;
+    overflow-wrap: anywhere;
+}
+
+#tab-result .result-map-panel #routeStatus strong,
+#tab-result .result-map-panel .route-status strong,
+#tab-result .result-map-panel .route-info strong {
+    color: #325b33;
+    font-size: 13px;
+    font-weight: 800;
+}
+
+#tab-result .result-map-panel #routeStatus p,
+#tab-result .result-map-panel .route-status p,
+#tab-result .result-map-panel .route-info p {
+    margin: 4px 0;
+    color: #64748b;
+    font-size: 12px;
+    line-height: 1.6;
+}
+
+#tab-result .result-map-panel #routeStatus:empty,
+#tab-result .result-map-panel .route-status:empty,
+#tab-result .result-map-panel .route-info:empty {
+    display: none;
+}

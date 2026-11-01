@@ -248,60 +248,9 @@ nav a.active {
 }
 
 
-.online {
-
-    margin-left:
-        auto;
-
-    display:
-        flex;
-
-    align-items:
-        center;
-
-    gap:
-        6px;
-
-    padding:
-        6px 10px;
-
-    border-radius:
-        999px;
-
-    background:
-        var(--green-light);
-
-    border:
-        1px solid
-        #bbf7d0;
-
-    color:
-        #15803d;
-
-    font-size:
-        9px;
-
-    font-weight:
-        800;
-
-}
 
 
-.online span {
 
-    width:
-        6px;
-
-    height:
-        6px;
-
-    border-radius:
-        50%;
-
-    background:
-        var(--green);
-
-}
 
 
 /* ============================================================
@@ -4629,4 +4578,1426 @@ textarea {
 #tab-result .result-map-panel .route-status:empty,
 #tab-result .result-map-panel .route-info:empty {
     display: none;
+}
+/* RouteWise simulated dashboard rebuild */
+
+.demo-note {
+    color: var(--muted);
+    font-size: 9px;
+    max-width: 230px;
+    line-height: 1.5;
+}
+
+.sim-dashboard {
+    padding: 22px;
+    max-width: 900px;
+}
+
+.sim-head,
+.sim-main,
+.sim-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 18px;
+}
+
+.sim-head h2 {
+    font-size: 22px;
+    margin: 6px 0;
+}
+
+.sim-head p,
+.sim-readout p {
+    color: var(--muted);
+    font-size: 11px;
+    margin-top: 5px;
+}
+
+.sim-live {
+    font-size: 9px;
+    font-weight: 900;
+    color: #15803d;
+    background: #ecfdf5;
+    border: 1px solid #bbf7d0;
+    border-radius: 999px;
+    padding: 7px 10px;
+    white-space: nowrap;
+}
+
+.sim-live i {
+    display: inline-block;
+    width: 7px;
+    height: 7px;
+    background: #16a34a;
+    border-radius: 50%;
+    margin-right: 5px;
+}
+
+.sim-disclaimer {
+    margin: 20px 0;
+    padding: 11px 13px;
+    background: #eff6ff;
+    border: 1px solid #bfdbfe;
+    border-radius: 9px;
+    color: #1e40af;
+    font-size: 10px;
+    line-height: 1.5;
+}
+
+.sim-disclaimer strong {
+    margin-right: 8px;
+    font-size: 9px;
+    letter-spacing: .06em;
+}
+
+.sim-main {
+    justify-content: flex-start;
+    padding: 24px 4%;
+    gap: 45px;
+}
+
+.sim-gauge {
+    --energy-value: 70%;
+    width: 190px;
+    height: 190px;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    background: conic-gradient(#16a34a var(--energy-value), #e8edf3 0);
+    position: relative;
+    flex: none;
+}
+
+.sim-gauge:before {
+    content: "";
+    position: absolute;
+    inset: 13px;
+    background: white;
+    border-radius: 50%;
+}
+
+.sim-gauge-inner {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+}
+
+.sim-gauge-inner strong {
+    font-size: 38px;
+    letter-spacing: -1px;
+}
+
+.sim-gauge-inner span {
+    font-size: 9px;
+    font-weight: 900;
+    color: var(--muted);
+    letter-spacing: .12em;
+}
+
+.range-caption {
+    font-size: 9px;
+    font-weight: 900;
+    color: var(--muted);
+    letter-spacing: .08em;
+}
+
+.sim-readout .range-number {
+    font-size: 43px;
+    font-weight: 900;
+    margin-top: 7px;
+}
+
+.sim-readout .range-number small {
+    font-size: 17px;
+    color: var(--muted);
+}
+
+.sim-state {
+    display: inline-block;
+    margin-top: 13px;
+    padding: 7px 10px;
+    border-radius: 8px;
+    background: #ecfdf5;
+    color: #166534;
+    font-size: 10px;
+    font-weight: 800;
+}
+
+.sim-state.low {
+    background: #fffbeb;
+    color: #92400e;
+}
+
+.sim-state.critical {
+    background: #fef2f2;
+    color: #b91c1c;
+}
+
+.sim-meter {
+    padding: 16px 4%;
+    border-top: 1px solid var(--border);
+}
+
+.sim-meter .energy-track {
+    height: 9px;
+    background: #e8edf3;
+    border-radius: 99px;
+    overflow: hidden;
+    margin-top: 9px;
+}
+
+.sim-meter .energy-fill {
+    height: 100%;
+    width: 70%;
+    background: #16a34a;
+    border-radius: 99px;
+    transition: width .35s ease;
+}
+
+.sim-footer {
+    padding: 12px 4%;
+    color: var(--muted);
+    font-size: 10px;
+    flex-wrap: wrap;
+}
+
+.energy-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    background: rgba(15, 23, 42, .55);
+    display: grid;
+    place-items: center;
+    padding: 20px;
+}
+
+.energy-modal.hidden {
+    display: none;
+}
+
+.energy-modal-card {
+    width: min(440px, 100%);
+    background: white;
+    border-radius: 16px;
+    padding: 26px;
+    box-shadow: 0 20px 60px rgba(15, 23, 42, .2);
+    text-align: center;
+}
+
+.critical-icon {
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    background: #fef2f2;
+    color: #dc2626;
+    font-size: 23px;
+    font-weight: 900;
+    margin: 0 auto 14px;
+}
+
+.energy-modal-card h2 {
+    font-size: 21px;
+    margin: 8px 0;
+}
+
+.energy-modal-card p {
+    font-size: 12px;
+    color: var(--muted);
+    line-height: 1.6;
+}
+
+.critical-reading {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: #f8fafc;
+    padding: 13px;
+    border-radius: 9px;
+    margin: 18px 0;
+    font-size: 10px;
+}
+
+.critical-reading strong {
+    font-size: 18px;
+    color: #dc2626;
+}
+
+.modal-actions {
+    display: flex;
+    gap: 9px;
+    justify-content: center;
+    flex-wrap: wrap;
+}
+
+.route-summary-top {
+    display: flex;
+    justify-content: flex-start;
+    gap: 12px;
+    margin: 12px 0;
+    padding: 0;
+    background: transparent;
+}
+
+.route-summary-top > div {
+    flex: 1;
+    padding: 10px 12px;
+    background: #f8fafc;
+    border: 1px solid var(--border);
+    border-radius: 9px;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.route-summary-top span {
+    font-size: 8px;
+    font-weight: 900;
+    color: var(--muted);
+    letter-spacing: .08em;
+}
+
+.route-summary-top strong {
+    font-size: 17px;
+    color: var(--text);
+}
+
+@media (max-width: 700px) {
+    .sim-dashboard {
+        padding: 16px;
+    }
+
+    .sim-head,
+    .sim-main {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .sim-main {
+        gap: 22px;
+    }
+
+    .sim-gauge {
+        width: 155px;
+        height: 155px;
+    }
+
+    .sim-gauge-inner strong {
+        font-size: 31px;
+    }
+
+    .modal-actions {
+        flex-direction: column;
+    }
+
+    .modal-actions button {
+        width: 100%;
+    }
+
+    .demo-note {
+        max-width: 100%;
+    }
+
+    .route-summary-top {
+        gap: 7px;
+    }
+}
+
+.location-status-message {
+    margin: 18px 0;
+    padding: 13px 16px;
+    background: #f0fdf4;
+    border: 1px solid #bbf7d0;
+    border-radius: 9px;
+    color: #166534;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+#startDashboard:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* Center the circular energy indicator */
+.energy-dashboard {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+    padding: 35px 0;
+}
+
+/* Keep the energy circle centered */
+.energy-gauge {
+    margin: 0 auto;
+}
+
+
+/* =====================================
+   ROUTEWISE - AUTOMOTIVE DASHBOARD
+===================================== */
+
+.sim-dashboard {
+    background: #101916;
+    color: #ffffff;
+    border: 1px solid #293831;
+    border-radius: 20px;
+    padding: 36px;
+}
+
+/* Dashboard heading */
+
+.sim-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 20px;
+    padding-bottom: 24px;
+    border-bottom: 1px solid #293831;
+}
+
+.sim-head h2 {
+    color: #ffffff;
+    font-size: 30px;
+    margin: 12px 0 6px;
+}
+
+.sim-head p {
+    color: #a9bdb2;
+    margin: 0;
+}
+
+.sim-head .station-eyebrow {
+    color: #65c995;
+}
+
+/* Main energy and range arrangement */
+
+.sim-main {
+    display: grid;
+    grid-template-columns: minmax(230px, 0.9fr) minmax(250px, 1fr);
+    align-items: center;
+    gap: 55px;
+    padding: 35px 25px;
+    min-height: 360px;
+}
+
+/* Energy circle */
+
+.sim-gauge {
+    width: 290px;
+    height: 290px;
+    max-width: 100%;
+    margin: 0 auto;
+}
+
+/* Range section */
+
+.sim-readout {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: flex-start;
+    padding: 20px 10px;
+    gap: 0;
+}
+
+.range-heading {
+    display: flex;
+    align-items: center;
+    gap: 11px;
+    margin-bottom: 17px;
+}
+
+.range-caption {
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    color: #a9bdb2;
+}
+
+.range-indicator {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #39b978;
+    box-shadow: 0 0 10px rgba(57, 185, 120, 0.5);
+}
+
+.range-number {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    color: #ffffff;
+    font-size: clamp(52px, 5vw, 72px);
+    font-weight: 750;
+    letter-spacing: -3px;
+    line-height: 1.1;
+}
+
+.range-number small {
+    font-size: 25px;
+    font-weight: 600;
+    letter-spacing: 0;
+    color: #39b978;
+}
+
+.range-divider {
+    width: 46px;
+    height: 3px;
+    background: #39b978;
+    border-radius: 10px;
+    margin: 20px 0 16px;
+}
+
+.sim-state {
+    width: fit-content;
+    padding: 9px 14px;
+    border-radius: 8px;
+    background: rgba(57, 185, 120, 0.12);
+    color: #62d69a;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+/* Bottom navigation */
+
+.sim-dashboard > .form-actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 15px;
+    padding-top: 24px;
+    border-top: 1px solid #293831;
+}
+
+/* Responsive layout */
+
+@media (max-width: 700px) {
+
+    .sim-dashboard {
+        padding: 22px 18px;
+    }
+
+    .sim-head {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .sim-main {
+        grid-template-columns: 1fr;
+        gap: 15px;
+        padding: 25px 5px;
+    }
+
+    .sim-gauge {
+        width: 245px;
+        height: 245px;
+    }
+
+    .sim-readout {
+        align-items: center;
+        text-align: center;
+        padding: 15px 0;
+    }
+
+    .range-heading {
+        justify-content: center;
+    }
+
+    .sim-dashboard > .form-actions {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .sim-dashboard > .form-actions button {
+        width: 100%;
+    }
+
+}
+
+
+/* LIGHT MODE */
+:root {
+    --page-bg: #f7f9fc;
+    --surface: #ffffff;
+    --text-primary: #172033;
+    --text-secondary: #64748b;
+    --border-color: #e2e8f0;
+    --primary-green: #325b33;
+    --soft-green: #eaf8ef;
+}
+
+/* DARK MODE */
+:root[data-theme="dark"] {
+    --page-bg: #101916;
+    --surface: #19251f;
+    --text-primary: #f1f5f2;
+    --text-secondary: #a9bdb2;
+    --border-color: #34443c;
+    --primary-green: #39b978;
+    --soft-green: #1c382b;
+}
+
+/* GLOBAL COLORS */
+body {
+    background: var(--page-bg);
+    color: var(--text-primary);
+    transition: background 0.25s ease, color 0.25s ease;
+}
+
+.card,
+.form-card,
+.station-page,
+.result-map-panel,
+.result-range-card,
+.result-station-card {
+    background: var(--surface);
+    color: var(--text-primary);
+    border-color: var(--border-color);
+}
+
+h1, h2, h3, strong {
+    color: var(--text-primary);
+}
+
+p,
+small {
+    color: var(--text-secondary);
+}
+
+/* THEME BUTTON */
+.theme-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+    padding: 11px 16px;
+    border: 1px solid var(--border-color);
+    border-radius: 30px;
+    background: var(--surface);
+    color: var(--text-primary);
+    font-weight: 600;
+    cursor: pointer;
+    transition: 0.2s ease;
+}
+
+.theme-toggle:hover {
+    border-color: var(--primary-green);
+    transform: translateY(-1px);
+}
+
+/* DASHBOARD */
+.sim-dashboard {
+    background: var(--surface);
+    color: var(--text-primary);
+    border-color: var(--border-color);
+}
+
+.sim-head h2,
+.range-number {
+    color: var(--text-primary);
+}
+
+.sim-head p,
+.range-caption {
+    color: var(--text-secondary);
+}
+
+/* BUTTONS */
+.primary-button {
+    background: var(--primary-green);
+}
+
+/* SMOOTH THEME TRANSITION */
+.header,
+.card,
+.stepper,
+.vehicle-card,
+.energy-modal-card,
+.station-page,
+.result-map-panel {
+    transition: background 0.25s ease, color 0.25s ease,
+                border-color 0.25s ease;
+}
+
+
+
+
+/* ==========================================
+   ROUTEWISE - PREMIUM GLOBAL COLOR THEME
+   Light: Warm Ivory & Forest
+   Dark: Midnight Emerald
+========================================== */
+
+/* ---------- LIGHT MODE (DEFAULT) ---------- */
+
+:root {
+    color-scheme: light;
+
+    --page-bg: #F1F3EC;
+    --surface: #FFFFFF;
+    --surface-secondary: #E8EEE6;
+    --surface-hover: #F5F8F3;
+
+    --primary: #286747;
+    --primary-hover: #1F553B;
+    --accent: #91BFA1;
+    --accent-soft: #E5F1E8;
+
+    --text-primary: #182820;
+    --text-secondary: #718078;
+    --text-muted: #98A59C;
+
+    --border: #DCE5DC;
+    --divider: #E5EBE4;
+
+    --success: #238653;
+    --success-bg: #E5F5EA;
+
+    --warning: #B7791F;
+    --warning-bg: #FFF4D9;
+
+    --danger: #D94B4B;
+    --danger-bg: #FCEAEA;
+
+    --gauge-track: #E2EAE4;
+    --gauge-center: #FFFFFF;
+
+    --shadow:
+        0 12px 35px rgba(32, 65, 45, 0.07);
+
+    --header-bg: #FFFFFF;
+}
+
+
+/* ---------- DARK MODE ---------- */
+
+:root[data-theme="dark"] {
+    color-scheme: dark;
+
+    --page-bg: #101820;
+    --surface: #192630;
+    --surface-secondary: #22333C;
+    --surface-hover: #263A43;
+
+    --primary: #20C982;
+    --primary-hover: #18AD6E;
+    --accent: #8BE6BE;
+    --accent-soft: #193B30;
+
+    --text-primary: #F4F7F6;
+    --text-secondary: #A6B5B0;
+    --text-muted: #82948D;
+
+    --border: #30423E;
+    --divider: #293C37;
+
+    --success: #20C982;
+    --success-bg: #193B30;
+
+    --warning: #F5B942;
+    --warning-bg: #44371E;
+
+    --danger: #F06464;
+    --danger-bg: #432727;
+
+    --gauge-track: #30423E;
+    --gauge-center: #192630;
+
+    --shadow:
+        0 12px 35px rgba(0, 0, 0, 0.22);
+
+    --header-bg: #192630;
+}
+
+
+/* ---------- GLOBAL PAGE ---------- */
+
+html {
+    background: var(--page-bg);
+}
+
+body {
+    background: var(--page-bg);
+    color: var(--text-primary);
+
+    transition:
+        background 0.25s ease,
+        color 0.25s ease;
+}
+
+.header {
+    background: var(--header-bg);
+    border-bottom: 1px solid var(--border);
+}
+
+.page {
+    background: var(--page-bg);
+}
+
+.logo strong {
+    color: var(--text-primary);
+}
+
+.logo small {
+    color: var(--text-secondary);
+}
+
+
+/* ---------- COMMON CARDS ---------- */
+
+.card,
+.form-card,
+.station-page,
+.result-map-panel,
+.result-range-card,
+.result-station-card {
+    background: var(--surface);
+    color: var(--text-primary);
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow);
+
+    transition:
+        background 0.25s ease,
+        border-color 0.25s ease,
+        color 0.25s ease;
+}
+
+h1, h2, h3, h4, strong {
+    color: var(--text-primary);
+}
+
+p,
+small {
+    color: var(--text-secondary);
+}
+
+.divider,
+hr {
+    border-color: var(--divider);
+}
+
+
+/* ---------- THEME TOGGLE ---------- */
+
+.theme-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 9px;
+
+    padding: 10px 16px;
+
+    background: var(--surface);
+    color: var(--text-primary);
+
+    border: 1px solid var(--border);
+    border-radius: 30px;
+
+    font-size: 13px;
+    font-weight: 700;
+
+    cursor: pointer;
+
+    transition: all 0.2s ease;
+}
+
+.theme-toggle:hover {
+    background: var(--surface-hover);
+    border-color: var(--primary);
+    transform: translateY(-1px);
+}
+
+.theme-toggle:focus-visible {
+    outline: 3px solid var(--accent);
+    outline-offset: 3px;
+}
+
+
+/* ---------- STEPPER ---------- */
+
+.stepper {
+    color: var(--text-secondary);
+}
+
+.step span {
+    color: var(--text-secondary);
+}
+
+.step.active span {
+    color: var(--primary);
+}
+
+.step-circle {
+    background: var(--surface-secondary);
+    color: var(--text-secondary);
+}
+
+.step.active .step-circle {
+    background: var(--primary);
+    color: #FFFFFF;
+}
+
+.step-line {
+    background: var(--border);
+}
+
+
+/* ---------- VEHICLE SELECTION ---------- */
+
+.vehicle-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text-primary);
+
+    transition:
+        background 0.2s ease,
+        border-color 0.2s ease,
+        transform 0.2s ease;
+}
+
+.vehicle-card:hover {
+    background: var(--surface-hover);
+    border-color: var(--primary);
+    transform: translateY(-3px);
+}
+
+.vehicle-card.selected {
+    background: var(--accent-soft);
+    border-color: var(--primary);
+}
+
+.vehicle-name {
+    color: var(--text-primary);
+}
+
+.vehicle-description {
+    color: var(--text-secondary);
+}
+
+.vehicle-icon {
+    color: var(--primary);
+}
+
+
+/* ---------- DASHBOARD ---------- */
+
+.sim-dashboard {
+    background: var(--surface);
+    color: var(--text-primary);
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow);
+}
+
+.sim-head {
+    border-bottom: 1px solid var(--divider);
+}
+
+.sim-head h2 {
+    color: var(--text-primary);
+}
+
+.sim-head p {
+    color: var(--text-secondary);
+}
+
+.sim-head .station-eyebrow {
+    color: var(--primary);
+}
+
+.sim-live {
+    background: var(--success-bg);
+    color: var(--success);
+    border: 1px solid var(--border);
+}
+
+
+/* ---------- ENERGY CIRCLE ---------- */
+
+.sim-gauge {
+    background-color: var(--gauge-track);
+}
+
+.sim-gauge-inner {
+    background: var(--gauge-center);
+    color: var(--text-primary);
+
+    transition:
+        background 0.25s ease,
+        color 0.25s ease;
+}
+
+.sim-gauge-inner strong {
+    color: var(--text-primary);
+}
+
+.sim-gauge-inner span {
+    color: var(--text-secondary);
+}
+
+
+/* ---------- ESTIMATED RANGE ---------- */
+
+.range-heading {
+    display: flex;
+    align-items: center;
+    gap: 11px;
+    margin-bottom: 17px;
+}
+
+.range-caption {
+    color: var(--text-secondary);
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 2px;
+}
+
+.range-indicator {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--primary);
+    box-shadow: 0 0 10px var(--accent);
+}
+
+.range-number {
+    color: var(--text-primary);
+    font-size: clamp(52px, 5vw, 72px);
+    font-weight: 750;
+    letter-spacing: -3px;
+    line-height: 1.1;
+}
+
+.range-number small {
+    color: var(--primary);
+    font-size: 25px;
+    font-weight: 600;
+    letter-spacing: 0;
+}
+
+.range-divider {
+    width: 46px;
+    height: 3px;
+    background: var(--primary);
+    border-radius: 10px;
+    margin: 20px 0 16px;
+}
+
+.sim-state {
+    width: fit-content;
+    padding: 9px 14px;
+    border-radius: 9px;
+
+    background: var(--success-bg);
+    color: var(--success);
+
+    font-size: 13px;
+    font-weight: 700;
+}
+
+
+/* ---------- BUTTONS ---------- */
+
+.primary-button {
+    background: var(--primary);
+    color: #FFFFFF;
+    border: 1px solid var(--primary);
+
+    transition: all 0.2s ease;
+}
+
+.primary-button:hover {
+    background: var(--primary-hover);
+    transform: translateY(-2px);
+}
+
+.secondary-button {
+    background: var(--surface);
+    color: var(--text-primary);
+    border: 1px solid var(--border);
+
+    transition: all 0.2s ease;
+}
+
+.secondary-button:hover {
+    background: var(--surface-hover);
+    border-color: var(--primary);
+}
+
+
+/* ---------- STATION RECOMMENDATIONS ---------- */
+
+.station-page-header h2 {
+    color: var(--text-primary);
+}
+
+.station-page-header p {
+    color: var(--text-secondary);
+}
+
+.station-summary {
+    background: var(--surface-secondary);
+    border: 1px solid var(--border);
+    color: var(--text-primary);
+}
+
+.station-summary strong {
+    color: var(--text-primary);
+}
+
+.station-summary p {
+    color: var(--text-secondary);
+}
+
+.station-message {
+    color: var(--text-secondary);
+}
+
+/* Station cards generated by JavaScript */
+
+.station-grid > * {
+    background: var(--surface);
+    color: var(--text-primary);
+    border-color: var(--border);
+}
+
+
+/* ---------- ROUTE RESULTS ---------- */
+
+.result-label {
+    color: var(--primary);
+}
+
+.result-map-heading h2,
+.result-section-heading h2 {
+    color: var(--text-primary);
+}
+
+.result-station-card h3 {
+    color: var(--text-primary);
+}
+
+.result-station-details {
+    border-color: var(--border);
+}
+
+.result-station-details span {
+    color: var(--text-secondary);
+}
+
+.route-summary {
+    background: var(--surface-secondary);
+    border: 1px solid var(--border);
+}
+
+.route-summary span {
+    color: var(--text-secondary);
+}
+
+.route-summary strong {
+    color: var(--text-primary);
+}
+
+.result-map-badge {
+    background: var(--accent-soft);
+    color: var(--primary);
+}
+
+
+/* ---------- ENERGY ALERT ---------- */
+
+.energy-modal {
+    background: rgba(0, 0, 0, 0.55);
+}
+
+.energy-modal-card {
+    background: var(--surface);
+    color: var(--text-primary);
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow);
+}
+
+.energy-modal-card h2 {
+    color: var(--text-primary);
+}
+
+.energy-modal-card p {
+    color: var(--text-secondary);
+}
+
+.critical-reading {
+    background: var(--surface-secondary);
+    color: var(--text-primary);
+}
+
+.critical-reading span {
+    color: var(--text-secondary);
+}
+
+.critical-reading strong {
+    color: var(--danger);
+}
+
+
+/* ---------- STATUS COLORS ---------- */
+
+.status-normal {
+    color: var(--success);
+    background: var(--success-bg);
+}
+
+.status-low {
+    color: var(--warning);
+    background: var(--warning-bg);
+}
+
+.status-critical {
+    color: var(--danger);
+    background: var(--danger-bg);
+}
+
+
+/* ---------- TRANSITIONS ---------- */
+
+.card,
+.vehicle-card,
+.station-summary,
+.station-grid > *,
+.result-map-panel,
+.result-range-card,
+.result-station-card,
+.energy-modal-card,
+.header,
+.stepper {
+    transition:
+        background 0.25s ease,
+        color 0.25s ease,
+        border-color 0.25s ease,
+        box-shadow 0.25s ease;
+}
+
+
+/* ---------- MOBILE RESPONSIVENESS ---------- */
+
+@media (max-width: 700px) {
+
+    .theme-toggle {
+        padding: 9px 11px;
+        font-size: 12px;
+    }
+
+    .sim-dashboard {
+        padding: 22px 18px;
+    }
+
+    .sim-main {
+        grid-template-columns: 1fr;
+        gap: 20px;
+    }
+
+    .sim-readout {
+        align-items: center;
+        text-align: center;
+    }
+
+    .range-heading {
+        justify-content: center;
+    }
+
+    .sim-dashboard > .form-actions {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .sim-dashboard > .form-actions button {
+        width: 100%;
+    }
+}
+
+/* =====================================
+   ROUTEWISE THEME CORRECTIONS
+===================================== */
+
+/* Dark mode: graphite + forest green */
+:root[data-theme="dark"] {
+    --page-bg: #111713;
+    --surface: #1B241F;
+    --surface-secondary: #242F28;
+    --surface-hover: #2A382F;
+
+    --primary: #20C982;
+    --primary-hover: #18AD6E;
+    --accent: #8BE6BE;
+    --accent-soft: #203A2C;
+
+    --text-primary: #F2F6F2;
+    --text-secondary: #A6B5AA;
+    --text-muted: #829287;
+
+    --border: #344239;
+    --divider: #303D34;
+
+    --gauge-track: #344239;
+    --gauge-center: #1B241F;
+
+    --header-bg: #1B241F;
+
+    --success: #20C982;
+    --success-bg: #203A2C;
+}
+
+/* Dashboard card */
+:root[data-theme="dark"] .sim-dashboard {
+    background: #1B241F !important;
+    border-color: #344239;
+}
+
+/* Dashboard energy circle */
+.sim-gauge-inner {
+    background: var(--gauge-center) !important;
+    color: var(--text-primary);
+}
+
+/* Remove rectangular background from percentage */
+.sim-gauge-inner strong {
+    background: transparent !important;
+    color: var(--primary) !important;
+
+    padding: 0 !important;
+    border: none !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+
+    font-size: clamp(42px, 4vw, 58px);
+    font-weight: 800;
+    line-height: 1.1;
+}
+
+/* Energy label */
+.sim-gauge-inner span {
+    background: transparent !important;
+    color: var(--text-secondary) !important;
+    padding: 0 !important;
+}
+
+/* Gauge ring */
+.sim-gauge {
+    background-color: var(--gauge-track);
+}
+
+/* Main dashboard text */
+:root[data-theme="dark"] .sim-head h2 {
+    color: #F2F6F2;
+}
+
+:root[data-theme="dark"] .sim-head p {
+    color: #A6B5AA;
+}
+
+/* Estimated range */
+:root[data-theme="dark"] .range-number {
+    color: #F2F6F2;
+}
+
+:root[data-theme="dark"] .range-number small {
+    color: #20C982;
+}
+
+/* Theme button */
+.theme-toggle {
+     margin-left:
+        auto;
+
+    display:
+        flex;
+
+    align-items:
+        center;
+
+    gap:
+        6px;
+
+    padding:
+        6px 10px;
+
+    border-radius:
+        999px;
+
+    background:
+        var(--green-light);
+
+    border:
+        1px solid
+        #bbf7d0;
+
+    color:
+        #15803d;
+
+    font-size:
+        9px;
+
+    font-weight:
+        800;
+}
+
+.theme-toggle:hover {
+    border-color: var(--primary);
+    background: var(--surface-hover);
+}
+
+/* Smooth transition */
+body,
+.header,
+.card,
+.sim-dashboard,
+.sim-gauge-inner,
+.theme-toggle {
+    transition: background 0.25s ease,
+                color 0.25s ease,
+                border-color 0.25s ease;
+}
+/* Remove black rectangle behind energy percentage */
+
+#simGauge .sim-gauge-inner strong,
+#simGauge .sim-gauge-inner span {
+    background: transparent !important;
+    background-color: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+}
+
+#energyPercent {
+    color: #20C982 !important;
+}
+
+#simGauge .sim-gauge-inner span {
+    color: #A6B5AA !important;
+}
+/* FINAL FIX: Remove rectangle behind energy text */
+
+#simGauge .sim-gauge-inner,
+#simGauge .sim-gauge-inner *,
+#simGauge .sim-gauge-inner *::before,
+#simGauge .sim-gauge-inner *::after {
+    background: transparent !important;
+    background-color: transparent !important;
+    background-image: none !important;
+    box-shadow: none !important;
+    border: none !important;
+}
+
+/* Keep energy percentage visible */
+#simGauge #energyPercent {
+    color: #20C982 !important;
+}
+
+/* Keep ENERGY label visible */
+#simGauge .sim-gauge-inner span {
+    color: #A6B5AA !important;
 }

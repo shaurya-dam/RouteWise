@@ -3,12 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
   <title>RouteWise — Dark Intelligence</title>
-
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 </head>
 
@@ -16,437 +13,132 @@
 
 <header class="header">
   <div class="header-inner">
-
     <a href="{{ url_for('home') }}" class="logo">
       <span class="logo-icon">↗</span>
-      <span>
-        <strong>RouteWise</strong>
-      </span>
+      <span><strong>RouteWise</strong></span>
     </a>
-
-    <!-- GLOWING LIVE SYSTEM BADGE -->
     <div class="system-status-badge">
       <span class="status-pulse"></span>
       <span>Dark Engine Active</span>
     </div>
-
   </div>
 </header>
 
 <main class="page">
-
   <!-- PROGRESS STEPPER -->
   <section class="stepper" aria-label="RouteWise progress">
-
-    <div class="step active" data-step="vehicle">
-      <div class="step-circle">1</div>
-      <span>Vehicle</span>
-    </div>
-
+    <div class="step active" data-step="vehicle"><div class="step-circle">1</div><span>Vehicle</span></div>
     <div class="step-line"></div>
-
-    <div class="step" data-step="dashboard">
-      <div class="step-circle">2</div>
-      <span>Dashboard</span>
-    </div>
-
+    <div class="step" data-step="dashboard"><div class="step-circle">2</div><span>Dashboard</span></div>
     <div class="step-line"></div>
-
-    <div class="step" data-step="location">
-      <div class="step-circle">3</div>
-      <span>Stations &amp; route</span>
-    </div>
-
+    <div class="step" data-step="location"><div class="step-circle">3</div><span>Live Route</span></div>
   </section>
 
-
-  <!-- VEHICLE SELECTION -->
+  <!-- TAB 1: VEHICLE SELECTION -->
   <section id="tab-vehicle" class="tab-content">
-
     <section class="card form-card">
-
-      <div class="card-header">
-        <div>
-          <h2>Vehicle Information</h2>
-        </div>
-      </div>
-
+      <div class="card-header"><h2>Vehicle Information</h2></div>
       <div class="block">
-
         <div class="block-label">Select Vehicle Type</div>
-
         <div class="vehicle-grid">
-
-          <a href="{{ url_for('index', vehicle_type='PETROL') }}"
-             class="vehicle-card {% if selected_vehicle == 'PETROL' %}selected{% endif %}">
-
-            <div class="vehicle-card-top">
-              <div class="vehicle-icon">⛽</div>
-              <div class="radio-dot"></div>
-            </div>
-
-            <div class="vehicle-name">Petrol</div>
-            <div class="vehicle-description">Fuel Powered</div>
-
+          <a href="{{ url_for('index', vehicle_type='PETROL') }}" class="vehicle-card {% if selected_vehicle == 'PETROL' %}selected{% endif %}">
+            <div class="vehicle-card-top"><div class="vehicle-icon">⛽</div><div class="radio-dot"></div></div>
+            <div class="vehicle-name">Petrol</div><div class="vehicle-description">Fuel Powered</div>
           </a>
-
-
-          <a href="{{ url_for('index', vehicle_type='EV') }}"
-             class="vehicle-card {% if selected_vehicle == 'EV' %}selected{% endif %}">
-
-            <div class="vehicle-card-top">
-              <div class="vehicle-icon">⚡</div>
-              <div class="radio-dot"></div>
-            </div>
-
-            <div class="vehicle-name">Electric</div>
-            <div class="vehicle-description">Battery Powered</div>
-
+          <a href="{{ url_for('index', vehicle_type='EV') }}" class="vehicle-card {% if selected_vehicle == 'EV' %}selected{% endif %}">
+            <div class="vehicle-card-top"><div class="vehicle-icon">⚡</div><div class="radio-dot"></div></div>
+            <div class="vehicle-name">Electric</div><div class="vehicle-description">Battery Powered</div>
           </a>
-
-
-          <a href="{{ url_for('index', vehicle_type='HYBRID') }}"
-             class="vehicle-card {% if selected_vehicle == 'HYBRID' %}selected{% endif %}">
-
-            <div class="vehicle-card-top">
-              <div class="vehicle-icon">↻</div>
-              <div class="radio-dot"></div>
-            </div>
-
-            <div class="vehicle-name">Hybrid</div>
-            <div class="vehicle-description">Dual Engine</div>
-
+          <a href="{{ url_for('index', vehicle_type='HYBRID') }}" class="vehicle-card {% if selected_vehicle == 'HYBRID' %}selected{% endif %}">
+            <div class="vehicle-card-top"><div class="vehicle-icon">↻</div><div class="radio-dot"></div></div>
+            <div class="vehicle-name">Hybrid</div><div class="vehicle-description">Dual Engine</div>
           </a>
-
         </div>
       </div>
-
-
       {% if selected_vehicle %}
-
       <input type="hidden" id="latitude" name="latitude">
       <input type="hidden" id="longitude" name="longitude">
-
       <div class="form-actions">
-
-        <button type="button"
-                id="startDashboard"
-                class="primary-button"
-                disabled>
-          Start Dashboard →
-        </button>
-
+        <button type="button" id="startDashboard" class="primary-button" disabled>Start Dashboard →</button>
       </div>
-
       {% endif %}
-
     </section>
   </section>
 
-
-  <!-- VEHICLE DASHBOARD -->
+  <!-- TAB 2: DASHBOARD -->
   <section id="tab-dashboard" class="tab-content hidden">
-
     <section class="card sim-dashboard">
-
       <div class="sim-head">
-
         <div>
-          <span class="station-eyebrow">
-            ROUTEWISE / LIVE SIMULATION
-          </span>
-
-          <h2 id="dashboardVehicleTitle">
-            Vehicle Dashboard
-          </h2>
-
-          <p id="dashboardVehicleModel">
-            Real-time Energy Telemetry
-          </p>
+          <span class="station-eyebrow">ROUTEWISE / LIVE SIMULATION</span>
+          <h2>Vehicle Dashboard</h2>
+          <p>Real-time Energy Telemetry</p>
         </div>
-
       </div>
-
       <div class="sim-main">
-
-        <!-- CIRCULAR ENERGY INDICATOR -->
         <div class="sim-gauge" id="simGauge">
-
-          <div class="sim-gauge-inner">
-
-            <strong id="energyPercent">--%</strong>
-
-            <span>ENERGY</span>
-
-          </div>
-
+          <div class="sim-gauge-inner"><strong id="energyPercent">--%</strong><span>ENERGY</span></div>
         </div>
-
-        <!-- ESTIMATED RANGE -->
         <div class="sim-readout">
-
-          <div class="range-heading">
-
-            <span class="range-caption">
-              ESTIMATED RANGE
-            </span>
-
-            <span class="range-indicator"></span>
-
-          </div>
-
-          <div class="range-number">
-
-            <span id="rangeKm">--</span>
-
-            <small>km</small>
-
-          </div>
-
+          <div class="range-heading"><span class="range-caption">ESTIMATED RANGE</span></div>
+          <div class="range-number"><span id="rangeKm">--</span><small>km</small></div>
           <div class="range-divider"></div>
-
-          <div class="sim-state" id="energyState">
-            Starting simulation…
-          </div>
-
+          <div class="sim-state" id="energyState">Starting simulation…</div>
         </div>
-
       </div>
-
-      <!-- DASHBOARD NAVIGATION -->
       <div class="form-actions">
-
-        <button type="button"
-                class="secondary-button"
-                onclick="switchTab('vehicle')">
-
-          ← Back to vehicle
-
-        </button>
-
-        <button type="button"
-                class="primary-button"
-                onclick="switchTab('location')">
-
-          View nearby stations →
-
-        </button>
-
+        <button type="button" class="secondary-button" onclick="switchTab('vehicle')">← Back</button>
+        <button type="button" class="primary-button" onclick="switchTab('location')">Find Routes Now →</button>
       </div>
-
     </section>
-
   </section>
 
-
-  <!-- STATION RECOMMENDATIONS -->
+  <!-- TAB 3: FULL SCREEN MAP WITH LIVE ENERGY BAR -->
   <section id="tab-location" class="tab-content hidden">
-
-    <section class="card station-page">
-
-      <div class="station-page-header">
-
-        <div>
-          <span class="station-eyebrow">
-            ROUTEWISE • SMART DISCOVERY
-          </span>
-
-          <h2>Nearby Station Recommendations</h2>
-
-          <p>Choose a station to view its road route.</p>
-        </div>
-
-        <div class="station-header-icon">⌖</div>
-
-      </div>
-
-      <div class="station-summary">
-
-        <div class="station-summary-icon">📍</div>
-
-        <div>
-          <strong>Selected Location</strong>
-
-          <p>
-            Recommendations use your selected coordinates and simulated range.
-          </p>
-        </div>
-
-      </div>
-
-      <div id="stationMessage"
-           class="station-message"
-           role="status">
-
-        Your recommended stations will appear here.
-
-      </div>
-
-      <div id="stationResults" class="station-grid"></div>
-
-      <div class="form-actions station-actions">
-
-        <button type="button"
-                class="secondary-button"
-                onclick="switchTab('dashboard')">
-
-          ← Back to dashboard
-
-        </button>
-
-        <button type="button"
-                class="primary-button"
-                onclick="loadStationRecommendations()">
-
-          Refresh stations ↻
-
-        </button>
-
-      </div>
-
-    </section>
-
-  </section>
-
-
-  <!-- ROUTE RESULT & FULL-PAGE MAP VISUALIZATION -->
-  <section id="tab-result" class="tab-content hidden">
-
     <div class="full-map-wrapper">
-
-      <!-- FLOATING MINI LIVE ENERGY INDICATOR (TOP RIGHT) -->
-      <div class="mini-energy-widget" id="miniEnergyWidget">
-        <div class="mini-energy-icon">⚡</div>
-        <div class="mini-energy-details">
-          <span class="mini-energy-label">Live Energy</span>
-          <strong id="miniEnergyPercent" class="mini-energy-val">--%</strong>
-        </div>
-        <div class="mini-energy-progress">
-          <div id="miniEnergyFill" class="mini-energy-fill"></div>
-        </div>
-      </div>
-
-      <!-- FLOATING ROUTE DETAILS OVERLAY (TOP LEFT) -->
-      <div class="floating-route-card">
-        <span class="result-label" style="color: #60a5fa; font-size: 0.7rem; letter-spacing: 1px;">TARGET DESTINATION</span>
-        <h3 id="resultStationName">No station selected</h3>
-        <p id="resultStationAddress">Select a station from recommendations.</p>
-        
+      
+      <!-- TOP LEFT: FLOATING ROUTE DETAILS -->
+      <div class="floating-route-card" id="mapRouteCard" style="display: none;">
+        <span id="routeBadge" style="color: #10b981; font-size: 10px; font-weight: 900; letter-spacing: 1px; text-transform: uppercase;">🏆 Fastest Route</span>
+        <h3 id="resultStationName">Calculating...</h3>
+        <p id="resultStationAddress" style="font-size: 11px; color: #94a3b8; margin-bottom: 8px;"></p>
         <div class="mini-stats-row">
-          <div>Dist: <strong id="routeDistance" style="color: #60a5fa;">—</strong></div>
-          <div>Time: <strong id="routeDuration" style="color: #60a5fa;">—</strong></div>
+          <div>Dist: <strong id="routeDistance" style="color: #38bdf8;">—</strong></div>
+          <div>Time: <strong id="routeDuration" style="color: #38bdf8;">—</strong></div>
+        </div>
+        <button type="button" class="secondary-button" style="margin-top: 15px; width: 100%; height: 34px; padding: 0;" onclick="switchTab('dashboard')">← Back to Dashboard</button>
+      </div>
+
+      <!-- TOP RIGHT: GOOD-LOOKING COMPACT ENERGY BAR OVERLAY -->
+      <div class="map-energy-widget">
+        <div class="energy-widget-header">
+          <span class="energy-icon">⚡</span>
+          <span class="energy-label">ENERGY LEVEL</span>
+          <strong id="mapEnergyVal" class="energy-val">85%</strong>
+        </div>
+        <div class="energy-bar-track">
+          <div id="mapEnergyBarFill" class="energy-bar-fill" style="width: 85%;"></div>
         </div>
       </div>
 
-      <!-- FULL-PAGE LEAFLET MAP CONTAINER -->
-      <div id="resultMap"
-           class="result-map-full"
-           data-map-key="{{ tomtom_map_key }}"
-           role="application"
-           aria-label="Route map">
-      </div>
-
+      <!-- MAIN MAP CONTAINER -->
+      <div id="sideMap" class="side-map-container" data-map-key="{{ tomtom_map_key }}"></div>
+    
     </div>
-
-    <!-- NAVIGATION BUTTONS BELOW MAP -->
-    <div class="result-navigation" style="margin-top: 15px; display: flex; gap: 10px;">
-      <button type="button" class="secondary-button" onclick="switchTab('location')">
-        ← Back to stations
-      </button>
-
-      <button type="button" class="secondary-button" onclick="switchTab('dashboard')">
-        ← Back to dashboard
-      </button>
-    </div>
-
   </section>
-
 </main>
 
-
-<!-- CRITICAL ENERGY POPUP -->
-<div id="criticalEnergyModal"
-     class="energy-modal hidden"
-     role="dialog"
-     aria-modal="true"
-     aria-labelledby="criticalTitle">
-
-  <div class="energy-modal-card">
-
-    <div class="critical-icon">!</div>
-
-    <span class="station-eyebrow">
-      ROUTEWISE / ENERGY ALERT
-    </span>
-
-    <h2 id="criticalTitle">
-      Energy Level Critical
-    </h2>
-
-    <p>
-      Your simulated energy has reached the critical level.
-      Find a nearby station to continue the demo.
-    </p>
-
-    <div class="critical-reading">
-
-      <span>Remaining Simulated Energy</span>
-
-      <strong id="criticalPercent">20%</strong>
-
-    </div>
-
-    <div class="modal-actions">
-
-      <button type="button"
-              class="secondary-button"
-              id="dismissCritical">
-
-        Continue Dashboard
-
-      </button>
-
-      <button type="button"
-              class="primary-button"
-              id="findStationNow">
-
-        Find Nearby Stations →
-
-      </button>
-
-    </div>
-
-  </div>
-
-</div>
-
-<!-- SAFE DATA BRIDGE (FLASK TO JAVASCRIPT) -->
 <script id="routewise-config-data" type="application/json">
 {
   "vehicleType": {{ (selected_vehicle | default('')) | tojson }},
-  "backendStations": {{ (stations | default([])) | tojson }},
   "cppRouteData": {{ (cpp_route_data | default(none)) | tojson }},
   "tomtomMapKey": {{ (tomtom_map_key | default('KAPybFJvNpPrXre1o4F2dy7ywR0IYTtB')) | tojson }}
 }
 </script>
-
 <script>
-  try {
-    const rawConfig = document.getElementById('routewise-config-data').textContent;
-    window.RouteWiseConfig = JSON.parse(rawConfig);
-    console.log("RouteWise Config Loaded Successfully:", window.RouteWiseConfig);
-  } catch (err) {
-    console.error("Error parsing RouteWiseConfig:", err);
-    window.RouteWiseConfig = { 
-      vehicleType: '', 
-      backendStations: [], 
-      cppRouteData: null, 
-      tomtomMapKey: 'KAPybFJvNpPrXre1o4F2dy7ywR0IYTtB' 
-    };
-  }
+  try { window.RouteWiseConfig = JSON.parse(document.getElementById('routewise-config-data').textContent); } 
+  catch(e) { window.RouteWiseConfig = { vehicleType: '', cppRouteData: null }; }
 </script>
-
 <script src="{{ url_for('static', filename='script.js') }}"></script>
-
 </body>
 </html>

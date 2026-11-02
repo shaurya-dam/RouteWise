@@ -1,11 +1,10 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-  <title>RouteWise</title>
+  <title>RouteWise — Dark Intelligence</title>
 
   <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
@@ -13,24 +12,23 @@
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 </head>
 
-<body data-active-tab="vehicle" data-vehicle-type="{{ selected_vehicle or '' }}">
+<body data-theme="dark" data-active-tab="vehicle" data-vehicle-type="{{ selected_vehicle or '' }}">
 
 <header class="header">
   <div class="header-inner">
 
-    <a href="{{ url_for('index') }}" class="logo">
+    <a href="{{ url_for('home') }}" class="logo">
       <span class="logo-icon">↗</span>
       <span>
         <strong>RouteWise</strong>
-       
       </span>
     </a>
 
-   
-    <button type="button" id="themeToggle" class="theme-toggle">
-    <span id="themeIcon">🌙</span>
-    <span id="themeText">Dark mode</span>
-</button>
+    <!-- GLOWING LIVE SYSTEM BADGE -->
+    <div class="system-status-badge">
+      <span class="status-pulse"></span>
+      <span>Dark Engine Active</span>
+    </div>
 
   </div>
 </header>
@@ -69,16 +67,13 @@
 
       <div class="card-header">
         <div>
-          <h2>Vehicle information</h2>
-       
+          <h2>Vehicle Information</h2>
         </div>
-
-        
       </div>
 
       <div class="block">
 
-        <div class="block-label">Select vehicle type</div>
+        <div class="block-label">Select Vehicle Type</div>
 
         <div class="vehicle-grid">
 
@@ -91,7 +86,7 @@
             </div>
 
             <div class="vehicle-name">Petrol</div>
-            <div class="vehicle-description">Petrol powered</div>
+            <div class="vehicle-description">Fuel Powered</div>
 
           </a>
 
@@ -105,7 +100,7 @@
             </div>
 
             <div class="vehicle-name">Electric</div>
-            <div class="vehicle-description">Battery powered</div>
+            <div class="vehicle-description">Battery Powered</div>
 
           </a>
 
@@ -119,7 +114,7 @@
             </div>
 
             <div class="vehicle-name">Hybrid</div>
-            <div class="vehicle-description">Fuel + electric</div>
+            <div class="vehicle-description">Dual Engine</div>
 
           </a>
 
@@ -129,14 +124,10 @@
 
       {% if selected_vehicle %}
 
-      
-
       <input type="hidden" id="latitude" name="latitude">
       <input type="hidden" id="longitude" name="longitude">
 
       <div class="form-actions">
-
-        
 
         <button type="button"
                 id="startDashboard"
@@ -158,7 +149,6 @@
 
     <section class="card sim-dashboard">
 
-      <!-- DASHBOARD HEADER -->
       <div class="sim-head">
 
         <div>
@@ -167,19 +157,16 @@
           </span>
 
           <h2 id="dashboardVehicleTitle">
-            Vehicle dashboard
+            Vehicle Dashboard
           </h2>
 
           <p id="dashboardVehicleModel">
-            Demo energy monitoring
+            Real-time Energy Telemetry
           </p>
         </div>
 
-
       </div>
 
-
-      <!-- ENERGY AND RANGE SECTION -->
       <div class="sim-main">
 
         <!-- CIRCULAR ENERGY INDICATOR -->
@@ -195,7 +182,6 @@
 
         </div>
 
-
         <!-- ESTIMATED RANGE -->
         <div class="sim-readout">
 
@@ -209,7 +195,6 @@
 
           </div>
 
-
           <div class="range-number">
 
             <span id="rangeKm">--</span>
@@ -218,9 +203,7 @@
 
           </div>
 
-
           <div class="range-divider"></div>
-
 
           <div class="sim-state" id="energyState">
             Starting simulation…
@@ -229,7 +212,6 @@
         </div>
 
       </div>
-
 
       <!-- DASHBOARD NAVIGATION -->
       <div class="form-actions">
@@ -241,7 +223,6 @@
           ← Back to vehicle
 
         </button>
-
 
         <button type="button"
                 class="primary-button"
@@ -279,13 +260,12 @@
 
       </div>
 
-
       <div class="station-summary">
 
         <div class="station-summary-icon">📍</div>
 
         <div>
-          <strong>Selected location</strong>
+          <strong>Selected Location</strong>
 
           <p>
             Recommendations use your selected coordinates and simulated range.
@@ -293,7 +273,6 @@
         </div>
 
       </div>
-
 
       <div id="stationMessage"
            class="station-message"
@@ -303,9 +282,7 @@
 
       </div>
 
-
       <div id="stationResults" class="station-grid"></div>
-
 
       <div class="form-actions station-actions">
 
@@ -316,7 +293,6 @@
           ← Back to dashboard
 
         </button>
-
 
         <button type="button"
                 class="primary-button"
@@ -333,162 +309,54 @@
   </section>
 
 
-  <!-- ROUTE RESULT -->
+  <!-- ROUTE RESULT & FULL-PAGE MAP VISUALIZATION -->
   <section id="tab-result" class="tab-content hidden">
 
-    <div class="result-layout">
+    <div class="full-map-wrapper">
 
-      <div class="result-sidebar">
-
-        <section class="card result-range-card">
-
-          <div class="result-range-info">
-
-            <span class="result-label">
-              SIMULATED ENERGY
-            </span>
-
-            <div class="result-range-value">
-              <span id="resultEnergyPercent">--</span>
-              <small>%</small>
-            </div>
-
-          </div>
-
-
-          <div class="result-energy-ring" id="resultEnergyRing">
-
-            <div class="result-ring-inner">
-              <strong id="resultEnergyRingText">--%</strong>
-              <span>Demo</span>
-            </div>
-
-          </div>
-
-        </section>
-
-
-        <section class="card result-station-card">
-
-          <div class="result-section-heading">
-
-            <div>
-              <span class="result-label">YOUR DESTINATION</span>
-              <h2>Selected Station</h2>
-            </div>
-
-            <span class="result-map-badge">ROUTE</span>
-
-          </div>
-
-
-          <h3 id="resultStationName">
-            No station selected
-          </h3>
-
-          <p id="resultStationAddress">
-            Select a station from recommendations.
-          </p>
-
-
-          <div class="result-station-details">
-
-            <div>
-              <span>Station distance</span>
-              <strong id="resultStationDistance">— km</strong>
-            </div>
-
-            <div>
-              <span>Station type</span>
-              <strong id="resultStationType">—</strong>
-            </div>
-
-          </div>
-
-        </section>
-
+      <!-- FLOATING MINI LIVE ENERGY INDICATOR (TOP RIGHT) -->
+      <div class="mini-energy-widget" id="miniEnergyWidget">
+        <div class="mini-energy-icon">⚡</div>
+        <div class="mini-energy-details">
+          <span class="mini-energy-label">Live Energy</span>
+          <strong id="miniEnergyPercent" class="mini-energy-val">--%</strong>
+        </div>
+        <div class="mini-energy-progress">
+          <div id="miniEnergyFill" class="mini-energy-fill"></div>
+        </div>
       </div>
 
-
-      <!-- ROUTE MAP -->
-      <section class="card result-map-panel">
-
-        <div class="result-map-heading">
-
-          <div>
-            <span class="result-label">NAVIGATION</span>
-            <h2>Route Map</h2>
-            <p>Your location to the selected station</p>
-          </div>
-
-          <span class="result-map-badge">DIRECTIONS</span>
-
+      <!-- FLOATING ROUTE DETAILS OVERLAY (TOP LEFT) -->
+      <div class="floating-route-card">
+        <span class="result-label" style="color: #60a5fa; font-size: 0.7rem; letter-spacing: 1px;">TARGET DESTINATION</span>
+        <h3 id="resultStationName">No station selected</h3>
+        <p id="resultStationAddress">Select a station from recommendations.</p>
+        
+        <div class="mini-stats-row">
+          <div>Dist: <strong id="routeDistance" style="color: #60a5fa;">—</strong></div>
+          <div>Time: <strong id="routeDuration" style="color: #60a5fa;">—</strong></div>
         </div>
+      </div>
 
-
-        <div class="route-summary route-summary-top">
-
-          <div>
-            <span>ROAD DISTANCE</span>
-            <strong id="routeDistance">—</strong>
-          </div>
-
-          <div>
-            <span>ESTIMATED TIME</span>
-            <strong id="routeDuration">—</strong>
-          </div>
-
-        </div>
-
-
-        <div id="resultMap"
-             class="result-map"
-             data-map-key="{{ tomtom_map_key }}"
-             role="application"
-             aria-label="Route map">
-        </div>
-
-
-        <p id="routeStatus" role="status">
-          Select a station to calculate your route.
-        </p>
-
-
-        <a id="openDirections"
-           class="primary-button result-directions-button"
-           href="#"
-           target="_blank"
-           rel="noopener noreferrer"
-           hidden>
-
-          Open Directions ↗
-
-        </a>
-
-      </section>
+      <!-- FULL-PAGE LEAFLET MAP CONTAINER -->
+      <div id="resultMap"
+           class="result-map-full"
+           data-map-key="{{ tomtom_map_key }}"
+           role="application"
+           aria-label="Route map">
+      </div>
 
     </div>
 
-
-    <div class="result-navigation">
-
-      <button type="button"
-              class="secondary-button"
-              onclick="switchTab('location')">
-
+    <!-- NAVIGATION BUTTONS BELOW MAP -->
+    <div class="result-navigation" style="margin-top: 15px; display: flex; gap: 10px;">
+      <button type="button" class="secondary-button" onclick="switchTab('location')">
         ← Back to stations
-
       </button>
 
-
-      <button type="button"
-              class="secondary-button"
-              onclick="switchTab('dashboard')">
-
+      <button type="button" class="secondary-button" onclick="switchTab('dashboard')">
         ← Back to dashboard
-
       </button>
-
     </div>
 
   </section>
@@ -512,7 +380,7 @@
     </span>
 
     <h2 id="criticalTitle">
-      Energy level is critical
+      Energy Level Critical
     </h2>
 
     <p>
@@ -520,15 +388,13 @@
       Find a nearby station to continue the demo.
     </p>
 
-
     <div class="critical-reading">
 
-      <span>Remaining simulated energy</span>
+      <span>Remaining Simulated Energy</span>
 
       <strong id="criticalPercent">20%</strong>
 
     </div>
-
 
     <div class="modal-actions">
 
@@ -536,16 +402,15 @@
               class="secondary-button"
               id="dismissCritical">
 
-        Continue dashboard
+        Continue Dashboard
 
       </button>
-
 
       <button type="button"
               class="primary-button"
               id="findStationNow">
 
-        Find nearby stations →
+        Find Nearby Stations →
 
       </button>
 
@@ -555,6 +420,31 @@
 
 </div>
 
+<!-- SAFE DATA BRIDGE (FLASK TO JAVASCRIPT) -->
+<script id="routewise-config-data" type="application/json">
+{
+  "vehicleType": {{ (selected_vehicle | default('')) | tojson }},
+  "backendStations": {{ (stations | default([])) | tojson }},
+  "cppRouteData": {{ (cpp_route_data | default(none)) | tojson }},
+  "tomtomMapKey": {{ (tomtom_map_key | default('KAPybFJvNpPrXre1o4F2dy7ywR0IYTtB')) | tojson }}
+}
+</script>
+
+<script>
+  try {
+    const rawConfig = document.getElementById('routewise-config-data').textContent;
+    window.RouteWiseConfig = JSON.parse(rawConfig);
+    console.log("RouteWise Config Loaded Successfully:", window.RouteWiseConfig);
+  } catch (err) {
+    console.error("Error parsing RouteWiseConfig:", err);
+    window.RouteWiseConfig = { 
+      vehicleType: '', 
+      backendStations: [], 
+      cppRouteData: null, 
+      tomtomMapKey: 'KAPybFJvNpPrXre1o4F2dy7ywR0IYTtB' 
+    };
+  }
+</script>
 
 <script src="{{ url_for('static', filename='script.js') }}"></script>
 

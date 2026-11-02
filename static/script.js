@@ -1,651 +1,361 @@
+// ============================================================
+// ROUTEWISE — GLOBAL APPLICATION STATE & CONFIGURATION
+// ============================================================
 
-// GLOBAL LIGHT / DARK MODE
-const themeToggle = document.getElementById("themeToggle");
-const themeIcon = document.getElementById("themeIcon");
-const themeText = document.getElementById("themeText");
+let currentEnergyPercent = 85;
+let simulationInterval = null;
+let safeRangeKm = 0;
+let userCoords = { lat: 30.3165, lon: 78.0322 }; // Default: Dehradun
 
-function applyTheme(theme) {
-    document.documentElement.setAttribute("data-theme", theme);
+// Global Leaflet Map References
+let routewiseMap = null;
+let routewiseMarkersGroup = null;
+let routewisePolyline = null;
 
-    if (theme === "dark") {
-        themeIcon.textContent = "☀️";
-        themeText.textContent = "Light mode";
-    } else {
-        themeIcon.textContent = "🌙";
-        themeText.textContent = "Dark mode";
-    }
-}
-
-const savedTheme = localStorage.getItem("routewise-theme") || "light";
-applyTheme(savedTheme);
-
-if (themeToggle) {
-    themeToggle.addEventListener("click", function () {
-        const currentTheme =
-            document.documentElement.getAttribute("data-theme");
-
-        const newTheme = currentTheme === "dark" ? "light" : "dark";
-
-        applyTheme(newTheme);
-        localStorage.setItem("routewise-theme", newTheme);
-    });
-}
- // AUTOMATIC LOCATION DETECTION
-
-function detectCurrentLocation() {
-
-    const latitudeInput = document.getElementById("latitude");
-    const longitudeInput = document.getElementById("longitude");
-    const status = document.getElementById("autoLocationStatus");
-    const startButton = document.getElementById("startDashboard");
-
-    if (!navigator.geolocation) {
-        if (status) {
-            status.textContent = "Location is not supported by this browser.";
-        }
-        return;
-    }
-
-    if (status) {
-        status.textContent = "Detecting your current location...";
-    }
-
-    navigator.geolocation.getCurrentPosition(
-
-        function (position) {
-
-            const latitude = position.coords.latitude;
-            const longitude = position.coords.longitude;
-
-            latitudeInput.value = latitude;
-            longitudeInput.value = longitude;
-
-            if (status) {
-                status.textContent = "✓ Current location detected successfully.";
-            }
-
-            if (startButton) {
-                startButton.disabled = false;
-            }
-
-            console.log("Latitude:", latitude);
-            console.log("Longitude:", longitude);
-        },
-
-        function (error) {
-
-            console.error("Location error:", error);
-
-            if (status) {
-                status.textContent =
-                    "Unable to detect location. Please allow location access and refresh the page.";
-            }
-
-            if (startButton) {
-                startButton.disabled = true;
-            }
-        },
-
-        {
-            enableHighAccuracy: true,
-            timeout: 15000,
-            maximumAge: 0
-        }
-    );
-}
-
-
-
-
-
-// RouteWise simulated dashboard and navigation
-
-let routeMap = null;
-let routeLine = null;
-let originMarker = null;
-let destinationMarker = null;
-
-let selectedRouteWiseStation = null;
-let energyLevel = 0;
-let energyTimer = null;
-let simulationPaused = false;
-let criticalAlertShown = false;
-
-let vehicleType = document.body.dataset.vehicleType || "";
-let currentTab = "vehicle";
-
-const demoRanges = {
-    PETROL: 420,
-    EV: 360,
-    HYBRID: 520
+// Load Config passed from Flask Jinja2 Template
+const appConfig = window.RouteWiseConfig || { 
+    vehicleType: '', 
+    backendStations: [], 
+    cppRouteData: null, 
+    tomtomMapKey: 'KAPybFJvNpPrXre1o4F2dy7ywR0IYTtB' 
 };
 
-const CRITICAL_LEVEL = 20;
+// ============================================================
+// 1. TAB SWITCHING & MAP RESIZE FIX
+// ============================================================
 
-
-function getDemoRange() {
-    return Math.round(
-        (demoRanges[vehicleType] || 400) * energyLevel / 100
-    );
-}
-
-
-function updateEnergyUI() {
-
-    const percent = Math.max(0, Math.round(energyLevel));
-    const range = getDemoRange();
-
-    [
-        "energyPercent",
-        "energyMeterLabel",
-        "resultEnergyPercent",
-        "resultEnergyRingText"
-    ].forEach(id => {
-
-        const el = document.getElementById(id);
-
-        if (el) {
-            el.textContent =
-                id === "resultEnergyPercent"
-                    ? percent
-                    : percent + "%";
-        }
-
+function switchTab(tabName) {
+    // Hide all tab sections
+    document.querySelectorAll('.tab-content').forEach(tab => {
+        tab.classList.add('hidden');
     });
 
-    const rangeEl = document.getElementById("rangeKm");
-
-    if (rangeEl) {
-        rangeEl.textContent = range;
+    // Show target tab
+    const targetTab = document.getElementById(`tab-${tabName}`);
+    if (targetTab) {
+        targetTab.classList.remove('hidden');
     }
 
-    const fill = document.getElementById("energyMeterFill");
+    // Update progress stepper indicators
+    document.querySelectorAll('.step').forEach(step => {
+        step.classList.remove('active');
+        if (step.getAttribute('data-step') === tabName) {
+            step.classList.add('active');
+        }
+    });
 
-    if (fill) {
-        fill.style.width = percent + "%";
-    }
-
-    const gauge = document.getElementById("simGauge");
-
-    if (gauge) {
-        gauge.style.setProperty("--energy-value", percent + "%");
-    }
-
-    const ring = document.getElementById("resultEnergyRing");
-
-    if (ring) {
-        ring.style.setProperty("--energy-value", percent + "%");
-    }
-
-    const state = document.getElementById("energyState");
-
-    if (state) {
-
-        state.textContent =
-            percent <= CRITICAL_LEVEL
-                ? "Critical energy — station recommended"
-                : percent <= 40
-                    ? "Energy getting low"
-                    : "Energy level normal";
-
-        state.className =
-            "sim-state " +
-            (
-                percent <= CRITICAL_LEVEL
-                    ? "critical"
-                    : percent <= 40
-                        ? "low"
-                        : ""
-            );
-    }
-
-    const label = document.getElementById("dashboardVehicleTitle");
-
-    if (label) {
-        label.textContent = (vehicleType || "Vehicle") + " dashboard";
-    }
-
-   
-
-    const critical = document.getElementById("criticalPercent");
-
-    if (critical) {
-        critical.textContent = percent + "%";
+    // Invalidate Leaflet Map size when tab becomes visible
+    if (tabName === 'result') {
+        setTimeout(() => {
+            if (routewiseMap) {
+                routewiseMap.invalidateSize();
+            } else {
+                initLeafletMap();
+            }
+        }, 150);
     }
 }
 
+// ============================================================
+// 2. LIVE ENERGY SIMULATION & MINI WIDGET UPDATES
+// ============================================================
+
+function updateEnergyDisplays(percent) {
+    currentEnergyPercent = percent;
+
+    // Update Main Dashboard Gauge
+    const energyText = document.getElementById('energyPercent');
+    const rangeKmText = document.getElementById('rangeKm');
+    const energyState = document.getElementById('energyState');
+
+    if (energyText) energyText.textContent = `${percent}%`;
+
+    const remainingKm = Math.max(0, Math.round((safeRangeKm * percent) / 100));
+    if (rangeKmText) rangeKmText.textContent = safeRangeKm > 0 ? remainingKm : '--';
+
+    if (energyState) {
+        if (percent <= 20) {
+            energyState.textContent = 'Critical Energy Warning';
+            energyState.className = 'sim-state critical';
+        } else if (percent <= 50) {
+            energyState.textContent = 'Low Energy Margin';
+            energyState.className = 'sim-state low';
+        } else {
+            energyState.textContent = 'Normal Operating Energy';
+            energyState.className = 'sim-state';
+        }
+    }
+
+    // Update Floating Mini Live Energy Widget on Map Overlay
+    const miniText = document.getElementById('miniEnergyPercent');
+    const miniFill = document.getElementById('miniEnergyFill');
+
+    if (miniText && miniFill) {
+        miniText.textContent = `${percent}%`;
+        miniFill.style.width = `${percent}%`;
+
+        if (percent <= 20) {
+            miniFill.style.backgroundColor = '#ef4444';
+            miniText.style.color = '#ef4444';
+        } else if (percent <= 50) {
+            miniFill.style.backgroundColor = '#eab308';
+            miniText.style.color = '#eab308';
+        } else {
+            miniFill.style.backgroundColor = '#10b981';
+            miniText.style.color = '#10b981';
+        }
+    }
+
+    // Trigger Critical Alert Popup if energy drops below 20%
+    if (percent <= 20) {
+        const modal = document.getElementById('criticalEnergyModal');
+        const critPercent = document.getElementById('criticalPercent');
+        if (modal && modal.classList.contains('hidden')) {
+            if (critPercent) critPercent.textContent = `${percent}%`;
+            modal.classList.remove('hidden');
+        }
+    }
+}
 
 function startEnergySimulation() {
+    if (simulationInterval) clearInterval(simulationInterval);
 
-    if (energyTimer) {
-        clearInterval(energyTimer);
-    }
-
-    // Random starting energy: 55% to 80%
-    energyLevel = Math.floor(Math.random() * 26) + 55;
-
-    simulationPaused = false;
-    criticalAlertShown = false;
-
-    updateEnergyUI();
-
-    const pause = document.getElementById("pauseSimulation");
-
-    if (pause) {
-        pause.textContent = "Pause simulation";
-    }
-
-    energyTimer = setInterval(() => {
-
-        if (simulationPaused || energyLevel <= 0) {
-            return;
+    simulationInterval = setInterval(() => {
+        if (currentEnergyPercent > 5) {
+            updateEnergyDisplays(currentEnergyPercent - 1);
+        } else {
+            clearInterval(simulationInterval);
         }
-
-        energyLevel = Math.max(0, energyLevel - 1);
-
-        updateEnergyUI();
-
-       if (
-    energyLevel <= CRITICAL_LEVEL &&
-    !criticalAlertShown &&
-    currentTab === "dashboard"
-) {
-    criticalAlertShown = true;
-
-    document
-        .getElementById("criticalEnergyModal")
-        ?.classList.remove("hidden");
-}
-
     }, 4000);
 }
 
+// ============================================================
+// 3. LEAFLET.JS MAP INITIALIZATION & REAL ROAD ROUTING
+// ============================================================
 
-function switchTab(tabName) {
-currentTab = tabName;
-    document.querySelectorAll(".tab-content").forEach(el => {
-        el.classList.add("hidden");
-    });
+function initLeafletMap() {
+    const mapContainer = document.getElementById('resultMap');
+    if (!mapContainer || routewiseMap) return;
 
-    const target = document.getElementById("tab-" + tabName);
+    // Initialize Map Instance
+    routewiseMap = L.map('resultMap').setView([userCoords.lat, userCoords.lon], 13);
 
-    if (!target) {
-        return;
-    }
+    // Get TomTom Key from config or fallback
+    const apiKey = (appConfig && appConfig.tomtomMapKey) ? appConfig.tomtomMapKey : 'KAPybFJvNpPrXre1o4F2dy7ywR0IYTtB';
 
-    target.classList.remove("hidden");
+    // Official TomTom Night Mode Map Tile Layer
+    L.tileLayer(`https://{s}.api.tomtom.com/map/1/tile/basic/night/{z}/{x}/{y}.png?key=${apiKey}`, {
+        attribution: '&copy; TomTom &copy; OpenStreetMap',
+        subdomains: 'abcd',
+        maxZoom: 19
+    }).addTo(routewiseMap);
 
-    const stepMap = {
-        vehicle: 0,
-        dashboard: 1,
-        location: 2,
-        result: 2
-    };
-
-    document.querySelectorAll(".step").forEach((el, i) => {
-        el.classList.toggle("active", i === stepMap[tabName]);
-    });
-
-    if (tabName === "location") {
-        loadStationRecommendations();
-    }
-
-    if (tabName === "result") {
-        setTimeout(() => routeMap?.invalidateSize(), 150);
-    }
+    routewiseMarkersGroup = L.layerGroup().addTo(routewiseMap);
 }
 
+function selectStationAndDrawRoute(name, lat, lon, distanceKm, stationType) {
+    // 1. Update Navigation Floating Info Box
+    const targetName = document.getElementById('resultStationName');
+    const targetAddr = document.getElementById('resultStationAddress');
+    const distText = document.getElementById('routeDistance');
+    const durationText = document.getElementById('routeDuration');
 
-function initializeRouteMap(lat, lon) {
+    if (targetName) targetName.textContent = name;
+    if (targetAddr) targetAddr.textContent = `${stationType || 'Station'} • ${distanceKm} km away`;
+    if (distText) distText.textContent = `Calculating route...`;
+    if (durationText) durationText.textContent = `Calculating...`;
 
-    const el = document.getElementById("resultMap");
+    // 2. Switch to Full-Screen Result/Map Screen
+    switchTab('result');
 
-    if (!el || typeof L === "undefined") {
-        throw new Error("Map library or map container is missing.");
-    }
+    // 3. Fetch Real Turn-by-Turn Road Geometry from TomTom Routing API
+    setTimeout(() => {
+        if (!routewiseMap) initLeafletMap();
+        routewiseMap.invalidateSize();
 
-    const key = el.dataset.mapKey;
-
-    if (!key) {
-        throw new Error("TomTom map display key is missing.");
-    }
-
-    if (!routeMap) {
-
-        routeMap = L.map(el).setView([lat, lon], 12);
-
-        L.tileLayer(
-            `https://{s}.api.tomtom.com/map/1/tile/basic/main/{z}/{x}/{y}.png?key=${encodeURIComponent(key)}`,
-            {
-                subdomains: ["a", "b", "c", "d"],
-                maxZoom: 22,
-                attribution: "&copy; TomTom"
-            }
-        ).addTo(routeMap);
-    }
-
-    routeMap.invalidateSize();
-
-    return routeMap;
-}
-
-
-async function calculateAndDisplayRoute(station) {
-
-    const status = document.getElementById("routeStatus");
-    const distanceEl = document.getElementById("routeDistance");
-    const durationEl = document.getElementById("routeDuration");
-
-    const lat = Number(document.getElementById("latitude")?.value);
-    const lon = Number(document.getElementById("longitude")?.value);
-
-    const destLat = Number(station.latitude);
-    const destLon = Number(station.longitude);
-
-    if (
-        !Number.isFinite(lat) ||
-        !Number.isFinite(lon) ||
-        !Number.isFinite(destLat) ||
-        !Number.isFinite(destLon)
-    ) {
-
-        if (status) {
-            status.textContent =
-                "Valid coordinates for your location and station are required.";
+        routewiseMarkersGroup.clearLayers();
+        if (routewisePolyline) {
+            routewiseMap.removeLayer(routewisePolyline);
         }
 
-        return;
-    }
+        // Add Start & Destination Markers
+        L.marker([userCoords.lat, userCoords.lon])
+            .bindPopup(`<b>📍 Your Location</b><br>Lat: ${userCoords.lat.toFixed(4)}, Lon: ${userCoords.lon.toFixed(4)}`)
+            .addTo(routewiseMarkersGroup);
 
-    try {
+        const stationMarker = L.marker([lat, lon])
+            .bindPopup(`<b>⚡ ${name}</b><br>${stationType || 'Station'}`)
+            .addTo(routewiseMarkersGroup);
 
-        const map = initializeRouteMap(lat, lon);
+        // Fetch turn-by-turn road coordinates from Flask backend
+        fetch(`/calculate-route?origin_lat=${userCoords.lat}&origin_lon=${userCoords.lon}&dest_lat=${lat}&dest_lon=${lon}`)
+            .then(res => res.json())
+            .then(routeData => {
+                let routePoints = [];
 
-        if (status) status.textContent = "Calculating road route…";
-        if (distanceEl) distanceEl.textContent = "Calculating…";
-        if (durationEl) durationEl.textContent = "Calculating…";
+                if (routeData.success && routeData.points && routeData.points.length > 0) {
+                    // Extract exact turn-by-turn street coordinates
+                    routePoints = routeData.points.map(p => [p.lat, p.lon]);
 
-        const q = new URLSearchParams({
-            origin_lat: lat,
-            origin_lon: lon,
-            dest_lat: destLat,
-            dest_lon: destLon
-        });
+                    if (distText) distText.textContent = `${routeData.distance_km} km`;
+                    if (durationText) durationText.textContent = `${routeData.travel_time_minutes} mins`;
+                } else {
+                    // Fallback to straight line if API fails
+                    routePoints = [[userCoords.lat, userCoords.lon], [lat, lon]];
+                    if (distText) distText.textContent = `${distanceKm} km`;
+                    if (durationText) durationText.textContent = `${Math.round(distanceKm * 2.2)} mins`;
+                }
 
-        const response = await fetch(`/calculate-route?${q}`);
+                // Draw Blue Polyline along actual roads
+                routewisePolyline = L.polyline(routePoints, {
+                    color: '#38bdf8',
+                    weight: 6,
+                    opacity: 0.9,
+                    lineCap: 'round',
+                    lineJoin: 'round'
+                }).addTo(routewiseMap);
 
-        const data = await response.json();
-
-        if (!response.ok || !data.success) {
-            throw new Error(data.message || "Unable to calculate route.");
-        }
-
-        if (!Array.isArray(data.points) || data.points.length < 2) {
-            throw new Error("No route geometry was returned.");
-        }
-
-        if (routeLine) map.removeLayer(routeLine);
-        if (originMarker) map.removeLayer(originMarker);
-        if (destinationMarker) map.removeLayer(destinationMarker);
-
-        originMarker = L.marker([lat, lon])
-            .addTo(map)
-            .bindPopup("Your starting location");
-
-        destinationMarker = L.marker([destLat, destLon])
-            .addTo(map)
-            .bindPopup(station.station_name || station.name || "Selected station");
-
-        routeLine = L.polyline(
-            data.points.map(p => [p.lat, p.lon]),
-            {
-                color: "#325b33",
-                weight: 6,
-                opacity: 0.85
-            }
-        ).addTo(map);
-
-        map.fitBounds(routeLine.getBounds(), {
-            padding: [35, 35]
-        });
-
-        if (distanceEl) {
-            distanceEl.textContent = `${Number(data.distance_km).toFixed(2)} km`;
-        }
-
-        if (durationEl) {
-            durationEl.textContent = `${data.travel_time_minutes} min`;
-        }
-
-        if (status) {
-            status.textContent = "Road route calculated successfully.";
-        }
-
-    } catch (err) {
-
-        console.error(err);
-
-        if (status) status.textContent = err.message;
-        if (distanceEl) distanceEl.textContent = "Unavailable";
-        if (durationEl) durationEl.textContent = "Unavailable";
-    }
-}
-
-
-function selectRouteWiseStation(station, card) {
-
-    selectedRouteWiseStation = station;
-
-    document.querySelectorAll(".station-card").forEach(el => {
-        el.classList.remove("selected-station");
-    });
-
-    card?.classList.add("selected-station");
-
-    const name =
-        station.station_name ||
-        station.name ||
-        station.poi?.name ||
-        "Selected station";
-
-    const address =
-        typeof station.address === "string"
-            ? station.address
-            : station.address?.freeformAddress ||
-              station.poi?.address?.freeformAddress ||
-              station.address?.municipality ||
-              "Address not available";
-
-    const put = (id, value) => {
-        const el = document.getElementById(id);
-        if (el) el.textContent = value;
-    };
-
-    put("resultStationName", name);
-    put("resultStationAddress", address);
-
-    put(
-        "resultStationDistance",
-        Number.isFinite(Number(station.distance_km))
-            ? Number(station.distance_km).toFixed(1) + " km"
-            : "Unavailable"
-    );
-
-    put("resultStationType", station.station_type || "Station");
-
-    switchTab("result");
-
-    setTimeout(() => calculateAndDisplayRoute(station), 180);
-}
-
-
-async function loadStationRecommendations() {
-
-    const message = document.getElementById("stationMessage");
-    const container = document.getElementById("stationResults");
-
-    if (!message || !container) {
-        return;
-    }
-
-    container.replaceChildren();
-
-    const lat = document.getElementById("latitude")?.value;
-    const lon = document.getElementById("longitude")?.value;
-
-    if (!vehicleType) {
-        message.textContent = "Please select a vehicle first.";
-        return;
-    }
-
-    if (!lat || !lon) {
-        message.textContent = "Please set your starting location first.";
-        return;
-    }
-
-    const rangeKm = Math.max(1, getDemoRange());
-
-    message.textContent = "Finding nearby stations…";
-
-    try {
-
-        const q = new URLSearchParams({
-            vehicle_type: vehicleType,
-            lat,
-            lon,
-            range_km: String(rangeKm)
-        });
-
-        const response = await fetch(`/station-recommendations?${q}`);
-
-        const data = await response.json();
-
-        if (!response.ok || !data.success) {
-            throw new Error(
-                data.message ||
-                data.error ||
-                "Unable to load stations."
-            );
-        }
-
-        if (!data.stations?.length) {
-            message.textContent =
-                "No nearby stations found. Try another location or refresh.";
-            return;
-        }
-
-        message.textContent =
-            `${data.stations.length} station(s) found for ${vehicleType}.`;
-
-        data.stations.forEach(station => {
-
-            const card = document.createElement("article");
-            card.className = "station-card";
-
-            const top = document.createElement("div");
-            top.className = "station-card-top";
-
-            const icon = document.createElement("div");
-            icon.className = "station-card-icon";
-            icon.textContent =
-                station.station_type === "EV Charging" ? "⚡" : "⛽";
-
-            const badge = document.createElement("span");
-            badge.className = "station-type-badge";
-            badge.textContent = station.station_type || "Station";
-
-            top.append(icon, badge);
-
-            const title = document.createElement("h3");
-            title.className = "station-name-link";
-            title.textContent =
-                station.station_name ||
-                station.name ||
-                station.poi?.name ||
-                "Nearby Station";
-
-            const addr = document.createElement("p");
-            addr.className = "station-address";
-            addr.textContent =
-                typeof station.address === "string"
-                    ? station.address
-                    : station.address?.freeformAddress ||
-                      station.poi?.address?.freeformAddress ||
-                      "Address not available";
-
-            const dist = document.createElement("p");
-            dist.className = "station-distance";
-            dist.textContent =
-                Number.isFinite(Number(station.distance_km))
-                    ? `Distance: ${Number(station.distance_km).toFixed(1)} km`
-                    : "Distance unavailable";
-
-            title.addEventListener("click", () => {
-                selectRouteWiseStation(station, card);
+                // Auto-fit bounds around the route
+                routewiseMap.fitBounds(routewisePolyline.getBounds(), { padding: [50, 50] });
+                stationMarker.openPopup();
+            })
+            .catch(err => {
+                console.error("Error fetching road route:", err);
+                routewisePolyline = L.polyline([[userCoords.lat, userCoords.lon], [lat, lon]], {
+                    color: '#38bdf8', weight: 5, opacity: 0.8
+                }).addTo(routewiseMap);
+                routewiseMap.fitBounds(routewisePolyline.getBounds(), { padding: [50, 50] });
             });
-
-            card.append(top, title, addr, dist);
-            container.append(card);
-        });
-
-    } catch (err) {
-
-        console.error(err);
-
-        message.textContent =
-            err.message || "Could not load station recommendations.";
-    }
+    }, 200);
 }
 
+// ============================================================
+// 4. STATION RECOMMENDATION FETCHING & RENDERING
+// ============================================================
 
+function loadStationRecommendations() {
+    const resultsContainer = document.getElementById('stationResults');
+    const msgContainer = document.getElementById('stationMessage');
 
-document.addEventListener("DOMContentLoaded", () => {
+    if (!resultsContainer) return;
 
-    // Automatically detect location when page loads
-    if (vehicleType) {
-        detectCurrentLocation();
+    const vType = appConfig.vehicleType || 'EV';
+    const rangeToUse = safeRangeKm > 0 ? safeRangeKm : 50;
+
+    msgContainer.textContent = "Fetching nearest reachable stations using C++ range filtering...";
+    resultsContainer.innerHTML = '<div class="station-empty">Searching nearby stations...</div>';
+
+    fetch(`/station-recommendations?vehicle_type=${encodeURIComponent(vType)}&lat=${userCoords.lat}&lon=${userCoords.lon}&range_km=${rangeToUse}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success && data.stations && data.stations.length > 0) {
+                msgContainer.textContent = `Found ${data.count} reachable stations within your safe usable range (${rangeToUse} km).`;
+                resultsContainer.innerHTML = '';
+
+                data.stations.forEach(st => {
+                    const card = document.createElement('div');
+                    card.className = 'station-card';
+                    card.innerHTML = `
+                        <div class="station-card-top">
+                            <div class="station-card-icon">${st.station_type === 'EV Charging' ? '⚡' : '⛽'}</div>
+                            <span class="station-type-badge">${st.station_type || 'Station'}</span>
+                        </div>
+                        <h3>${st.name}</h3>
+                        <p class="station-address">📍 ${st.address || 'Location nearby'}</p>
+                        <p class="station-distance">Distance: <strong>${st.distance_km} km</strong></p>
+                        <div style="margin-top: 14px;">
+                            <button type="button" class="primary-button" style="width: 100%;"
+                                onclick="selectStationAndDrawRoute('${st.name.replace(/'/g, "\\'")}', ${st.latitude}, ${st.longitude}, ${st.distance_km}, '${st.station_type}')">
+                                View Full Route Map ↗
+                            </button>
+                        </div>
+                    `;
+                    resultsContainer.appendChild(card);
+                });
+            } else {
+                msgContainer.textContent = "No stations found within calculated range.";
+                resultsContainer.innerHTML = `
+                    <div class="station-empty">
+                        <div class="station-empty-icon">⚠️</div>
+                        <strong>No reachable stations in range</strong>
+                        <p>${data.message || 'Try adjusting your vehicle energy level or range input.'}</p>
+                    </div>
+                `;
+            }
+        })
+        .catch(err => {
+            console.error("Error loading stations:", err);
+            msgContainer.textContent = "Failed to load station recommendations.";
+        });
+}
+
+// ============================================================
+// 5. DOM INITIALIZATION & EVENT LISTENERS
+// ============================================================
+
+document.addEventListener('DOMContentLoaded', () => {
+    // Geolocation API
+    if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+            (pos) => {
+                userCoords.lat = pos.coords.latitude;
+                userCoords.lon = pos.coords.longitude;
+                const latInput = document.getElementById('latitude');
+                const lonInput = document.getElementById('longitude');
+                if (latInput) latInput.value = userCoords.lat;
+                if (lonInput) lonInput.value = userCoords.lon;
+            },
+            (err) => {
+                console.warn("Geolocation warning, using default coordinates:", err.message);
+            }
+        );
     }
 
-    const start = document.getElementById("startDashboard");
+    // Read C++ Range output if present
+    if (appConfig.cppRouteData && appConfig.cppRouteData.safe_range) {
+        safeRangeKm = appConfig.cppRouteData.safe_range;
+    } else {
+        safeRangeKm = 65;
+    }
 
-    start?.addEventListener("click", () => {
+    // Setup Start Dashboard Button
+    const startDashBtn = document.getElementById('startDashboard');
+    if (startDashBtn) {
+        startDashBtn.disabled = false;
+        startDashBtn.addEventListener('click', () => {
+            switchTab('dashboard');
+            startEnergySimulation();
+        });
+    }
 
-        const lat = document.getElementById("latitude")?.value;
-        const lon = document.getElementById("longitude")?.value;
-
-        if (!lat || !lon) {
-            alert("Please wait for your location to be detected.");
-            return;
-        }
-
-        startEnergySimulation();
-        switchTab("dashboard");
+    // Stepper click listeners
+    document.querySelectorAll('.step').forEach(step => {
+        step.addEventListener('click', () => {
+            const stepName = step.getAttribute('data-step');
+            if (stepName) switchTab(stepName);
+        });
     });
 
-    document.getElementById("pauseSimulation")?.addEventListener("click", e => {
+    // Modal actions
+    const dismissBtn = document.getElementById('dismissCritical');
+    const findNowBtn = document.getElementById('findStationNow');
+    const modal = document.getElementById('criticalEnergyModal');
 
-        simulationPaused = !simulationPaused;
+    if (dismissBtn) {
+        dismissBtn.addEventListener('click', () => {
+            if (modal) modal.classList.add('hidden');
+        });
+    }
 
-        e.currentTarget.textContent =
-            simulationPaused
-                ? "Resume simulation"
-                : "Pause simulation";
-    });
+    if (findNowBtn) {
+        findNowBtn.addEventListener('click', () => {
+            if (modal) modal.classList.add('hidden');
+            switchTab('location');
+            loadStationRecommendations();
+        });
+    }
 
-    document.getElementById("dismissCritical")?.addEventListener("click", () => {
-
-        document
-            .getElementById("criticalEnergyModal")
-            ?.classList.add("hidden");
-    });
-
-    document.getElementById("findStationNow")?.addEventListener("click", () => {
-
-        document
-            .getElementById("criticalEnergyModal")
-            ?.classList.add("hidden");
-
-        switchTab("location");
-    });
-
+    // Initialize map container immediately
+    initLeafletMap();
+    updateEnergyDisplays(currentEnergyPercent);
 });

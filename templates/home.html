@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RouteWise — Smart Vehicle Range & Route Intelligence</title>
+
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <style>
+    /* ============================================================
+       DEEP BLACK & NEON PURPLE/VIOLET GRADIENT THEME
+    ============================================================ */
+    body {
+      background: radial-gradient(circle at 50% 0%, #1d0936 0%, #06020a 85%) fixed !important;
+      color: #f8fafc !important;
+      font-family: Inter, system-ui, -apple-system, sans-serif;
+      margin: 0;
+      padding: 0;
+    }
+
+    .home-header {
+      height: 70px;
+      background: rgba(10, 4, 20, 0.85);
+      backdrop-filter: blur(14px);
+      border-bottom: 1px solid rgba(168, 85, 247, 0.15);
+      display: flex;
+      align-items: center;
+      padding: 0 40px;
+    }
+
+    .home-header .logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      color: #ffffff;
+      text-decoration: none;
+    }
+
+    .logo-icon-dark {
+      width: 36px;
+      height: 36px;
+      border-radius: 10px;
+      background: linear-gradient(135deg, #c084fc, #7c3aed);
+      color: white;
+      display: grid;
+      place-items: center;
+      font-weight: 900;
+      font-size: 18px;
+      box-shadow: 0 0 20px rgba(168, 85, 247, 0.5);
+    }
+
+    .system-status {
+      margin-left: auto;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 14px;
+      border-radius: 999px;
+      background: rgba(168, 85, 247, 0.12);
+      border: 1px solid rgba(168, 85, 247, 0.35);
+      color: #c084fc;
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      background: #a855f7;
+      border-radius: 50%;
+      box-shadow: 0 0 10px #a855f7;
+      animation: pulseGlow 1.8s infinite;
+    }
+
+    @keyframes pulseGlow {
+      0% { transform: scale(0.95); opacity: 0.7; }
+      50% { transform: scale(1.25); opacity: 1; box-shadow: 0 0 15px #a855f7; }
+      100% { transform: scale(0.95); opacity: 0.7; }
+    }
+
+    /* Hero Section */
+    .hero-container {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 80px 20px 40px;
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .hero-tag {
+      display: inline-block;
+      padding: 7px 18px;
+      border-radius: 999px;
+      background: linear-gradient(135deg, rgba(168, 85, 247, 0.2), rgba(124, 58, 237, 0.1));
+      border: 1px solid rgba(168, 85, 247, 0.4);
+      color: #e9d5ff;
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 1.5px;
+      margin-bottom: 24px;
+      text-transform: uppercase;
+      box-shadow: 0 0 15px rgba(168, 85, 247, 0.2);
+    }
+
+    .hero-title {
+      font-size: clamp(34px, 5.5vw, 56px);
+      font-weight: 900;
+      line-height: 1.15;
+      max-width: 860px;
+      margin: 0 0 20px 0;
+      background: linear-gradient(135deg, #ffffff 40%, #c084fc 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .hero-subtitle {
+      font-size: clamp(15px, 2vw, 19px);
+      color: #cbd5e1;
+      max-width: 680px;
+      line-height: 1.6;
+      margin: 0 0 36px 0;
+    }
+
+    /* Glowing Violet Redirect Button */
+    .cta-launch-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+      padding: 16px 38px;
+      font-size: 17px;
+      font-weight: 800;
+      color: #ffffff;
+      background: linear-gradient(135deg, #a855f7 0%, #6d28d9 100%);
+      border-radius: 14px;
+      text-decoration: none;
+      box-shadow: 0 8px 32px rgba(168, 85, 247, 0.45);
+      transition: all 0.3s ease;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+
+    .cta-launch-btn:hover {
+      transform: translateY(-4px) scale(1.02);
+      box-shadow: 0 14px 45px rgba(168, 85, 247, 0.65);
+      background: linear-gradient(135deg, #b469ff 0%, #7c3aed 100%);
+    }
+
+    /* About Section */
+    .about-card-wrapper {
+      max-width: 1100px;
+      margin: 50px auto 80px;
+      padding: 44px;
+      border-radius: 24px;
+      background: linear-gradient(145deg, rgba(25, 12, 42, 0.75), rgba(9, 3, 18, 0.95));
+      backdrop-filter: blur(16px);
+      border: 1px solid rgba(168, 85, 247, 0.2);
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
+    }
+
+    .about-head-badge {
+      color: #c084fc;
+      font-size: 10px;
+      font-weight: 900;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+    }
+
+    .about-card-wrapper h2 {
+      font-size: 28px;
+      font-weight: 900;
+      margin: 8px 0 12px 0;
+      color: #f8fafc;
+    }
+
+    .about-card-wrapper p {
+      color: #94a3b8;
+      font-size: 14px;
+      line-height: 1.6;
+      margin: 0;
+    }
+
+    .features-dark-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 22px;
+      margin-top: 36px;
+    }
+
+    .feature-box {
+      padding: 26px;
+      border-radius: 16px;
+      background: rgba(12, 5, 24, 0.7);
+      border: 1px solid rgba(168, 85, 247, 0.15);
+      transition: all 0.25s ease;
+    }
+
+    .feature-box:hover {
+      background: rgba(30, 14, 56, 0.8);
+      border-color: rgba(168, 85, 247, 0.5);
+      transform: translateY(-4px);
+      box-shadow: 0 10px 30px rgba(168, 85, 247, 0.15);
+    }
+
+    .feature-icon-box {
+      width: 48px;
+      height: 48px;
+      border-radius: 12px;
+      background: linear-gradient(135deg, rgba(168, 85, 247, 0.25), rgba(124, 58, 237, 0.15));
+      border: 1px solid rgba(168, 85, 247, 0.4);
+      color: #e9d5ff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 22px;
+      margin-bottom: 16px;
+    }
+
+    .feature-box h3 {
+      font-size: 17px;
+      font-weight: 800;
+      margin: 0 0 10px 0;
+      color: #f8fafc;
+    }
+
+    .feature-box p {
+      font-size: 13px;
+      color: #94a3b8;
+      line-height: 1.55;
+    }
+
+    .home-footer {
+      text-align: center;
+      padding: 24px;
+      border-top: 1px solid rgba(168, 85, 247, 0.12);
+      color: #64748b;
+      font-size: 12px;
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- HEADER -->
+  <header class="home-header">
+    <a href="{{ url_for('home') }}" class="logo">
+      <div class="logo-icon-dark">↗</div>
+      <strong>RouteWise</strong>
+    </a>
+
+    <div class="system-status">
+      <span class="status-dot"></span>
+      <span>C++ Engine Active</span>
+    </div>
+  </header>
+
+  <main>
+    <!-- HERO SECTION -->
+    <section class="hero-container">
+      <span class="hero-tag">A* PATHFINDING &amp; RANGE INTELLIGENCE</span>
+      <h1 class="hero-title">Smart Vehicle Range Estimation &amp; Station Navigation</h1>
+      <p class="hero-subtitle">
+        RouteWise combines real-time C++ energy evaluation with A* graph search to recommend optimal charging and refueling stations for EV, Petrol, and Hybrid vehicles.
+      </p>
+
+      <!-- REDIRECT BUTTON TO ROUTEWISE SITE -->
+      <a href="{{ url_for('index') }}" class="cta-launch-btn">
+        Launch RouteWise App ↗
+      </a>
+    </section>
+
+    <!-- ABOUT ROUTEWISE SECTION -->
+    <section class="about-card-wrapper">
+      <span class="about-head-badge">ABOUT THE PLATFORM</span>
+      <h2>Engineered for Performance &amp; Precision</h2>
+      <p>
+        RouteWise solves range anxiety by connecting low-level C++ computational routines with Leaflet.js map rendering.
+      </p>
+
+      <div class="features-dark-grid">
+
+        <div class="feature-box">
+          <div class="feature-icon-box">⚡</div>
+          <h3>C++ OOP Range Engine</h3>
+          <p>
+            Calculates exact usable safe ranges using polymorphic vehicle classes with realistic safety buffer margins.
+          </p>
+        </div>
+
+        <div class="feature-box">
+          <div class="feature-icon-box">🔍</div>
+          <h3>Reachability &amp; Plug Match</h3>
+          <p>
+            Min-Heap priority queue algorithms filter reachable stations and match EV connectors (CCS2, Type-2) dynamically.
+          </p>
+        </div>
+
+        <div class="feature-box">
+          <div class="feature-icon-box">🗺️</div>
+          <h3>A* Graph Pathfinding</h3>
+          <p>
+            Computes optimal turn-by-turn road network routes using Haversine heuristics and plots them on Leaflet map.
+          </p>
+        </div>
+
+      </div>
+    </section>
+  </main>
+
+  <footer class="home-footer">
+    <p>© 2026 RouteWise Project • C++ Engine &amp; Flask Architecture</p>
+  </footer>
+
+</body>
+</html>

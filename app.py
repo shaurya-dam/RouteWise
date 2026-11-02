@@ -1,14 +1,13 @@
-
 import os
 import re
 import subprocess
+from math import radians, sin, cos, sqrt, atan2
 
 import requests
 from dotenv import load_dotenv
 from flask import Flask, jsonify, render_template, request
 
-from db import get_available_charging_stations,save_vehicle_data
-from math import radians, sin, cos, sqrt, atan2
+from db import get_available_charging_stations, save_vehicle_data
 
 # ============================================================
 # CONFIGURATION
@@ -16,23 +15,48 @@ from math import radians, sin, cos, sqrt, atan2
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-# Your environment file is named 1.env
+# Attempt to load .env file
 load_dotenv(os.path.join(BASE_DIR, ".env"))
 
 app = Flask(__name__)
 
-TOMTOM_API_KEY = os.getenv("TOMTOM_API_KEY")
-TOMTOM_MAP_KEY = os.getenv("TOMTOM_MAP_KEY")
+# Fallback API key mechanism if .env fails to load
+HARDCODED_API_KEY = "KAPybFJvNpPrXre1o4F2dy7ywR0IYTtB"
+TOMTOM_API_KEY = os.getenv("TOMTOM_API_KEY") or HARDCODED_API_KEY
+TOMTOM_MAP_KEY = os.getenv("TOMTOM_MAP_KEY") or HARDCODED_API_KEY
 
 BACKEND_DIR = os.path.join(BASE_DIR, "backend")
-CPP_EXE = os.path.join(BACKEND_DIR, "RouteWiseEngine.exe")
+CPP_EXE = os.path.join(BACKEND_DIR, "RouteWiseEngine.exe") if os.name == 'nt' else os.path.join(BACKEND_DIR, "RouteWiseEngine")
 
 DEFAULT_LATITUDE = 30.3165
 DEFAULT_LONGITUDE = 78.0322
+DEFAULT_CITY = "Dehradun"
+
+# ============================================================
+# HELPER FUNCTIONS
+# ============================================================
+
+def safe_float(value):
+    """Convert a value to float, or return None if invalid."""
+    try:
+        if value is None or str(value).strip() == "":
+            return None
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+def calculate_distance_km(lat1, lon1, lat2, lon2):
+    earth_radius = 6371.0
+    lat1, lon1, lat2, lon2 = map(radians, [lat1, lon1, lat2, lon2])
+    dlat = lat2 - lat1
+    dlon = lon2 - lon1
+
+    a = sin(dlat / 2) ** 2 + cos(lat1) * cos(lat2) * sin(dlon / 2) ** 2
+    a = max(0.0, min(1.0, a))
+    return 2 * earth_radius * atan2(sqrt(a), sqrt(1 - a))
 
 def rank_stations_by_distance(stations, latitude, longitude):
     valid_stations = []
-
     for station in stations:
         lat = safe_float(station.get("latitude"))
         lon = safe_float(station.get("longitude"))
@@ -47,18 +71,14 @@ def rank_stations_by_distance(stations, latitude, longitude):
             calculate_distance_km(latitude, longitude, lat, lon),
             2
         )
-
         valid_stations.append(station)
 
     valid_stations.sort(key=lambda station: station["distance_km"])
-
     return valid_stations
 
 def validate_data(vehicle_type, form_data):
-    """Validate submitted form values without calculating range."""
-
+    """Validate submitted form values."""
     errors = []
-
     vehicle_model = form_data.get("vehicle_model", "").strip()
 
     if not vehicle_model:
@@ -68,12 +88,7 @@ def validate_data(vehicle_type, form_data):
         "PETROL": ["fuel_percent", "tank_capacity", "mileage"],
         "DIESEL": ["fuel_percent", "tank_capacity", "mileage"],
         "EV": ["battery_percent", "battery_capacity", "efficiency"],
-        "HYBRID": [
-            "fuel_percent",
-            "tank_capacity",
-            "mileage",
-            "battery_percent",
-        ],
+        "HYBRID": ["fuel_percent", "tank_capacity", "mileage", "battery_percent"],
     }
 
     if vehicle_type not in required_fields:
@@ -81,60 +96,50 @@ def validate_data(vehicle_type, form_data):
         return errors
 
     values = {}
-
     for field in required_fields[vehicle_type]:
         value = safe_float(form_data.get(field))
-
         if value is None:
             errors.append(f"Please enter a valid value for {field.replace('_', ' ')}.")
         else:
             values[field] = value
 
-    # Stop numeric checks if required values are missing.
     if errors:
         return errors
 
-    # Percentage validation
     for field in ("fuel_percent", "battery_percent"):
         if field in values and not 0 <= values[field] <= 100:
             errors.append(f"{field.replace('_', ' ').title()} must be between 0 and 100.")
 
-    # Positive-value validation
     for field in ("tank_capacity", "battery_capacity", "mileage", "efficiency"):
         if field in values and values[field] <= 0:
             errors.append(f"{field.replace('_', ' ').title()} must be greater than 0.")
 
     return errors
 
-def get_tomtom_fuel_stations(latitude, longitude, radius_km=10):
-    """Find nearby fuel stations using TomTom."""
+# ============================================================
+# TOMTOM API INTEGRATION
+# ============================================================
 
+def get_tomtom_fuel_stations(latitude, longitude, radius_km=10):
     if not TOMTOM_API_KEY:
-        raise RuntimeError("TOMTOM_API_KEY is missing from 1.env.")
+        raise RuntimeError("TOMTOM_API_KEY is missing.")
 
     url = "https://api.tomtom.com/search/2/poiSearch/fuel.json"
-
     response = requests.get(
         url,
         params={
             "key": TOMTOM_API_KEY,
             "lat": latitude,
             "lon": longitude,
-           "radius": int(min(max(radius_km, 0.1), 50) * 1000),
-"limit": 100,
+            "radius": int(min(max(radius_km, 0.1), 50) * 1000),
+            "limit": 100,
             "countrySet": "IN",
         },
         timeout=20,
     )
-    if not response.ok:
-      app.logger.error(
-        "TomTom EV API failed: HTTP %s - %s",
-        response.status_code,
-        response.text[:500]
-    )
     response.raise_for_status()
-    stations = []
 
+    stations = []
     for item in response.json().get("results", []):
         poi = item.get("poi", {})
         address = item.get("address", {})
@@ -149,18 +154,11 @@ def get_tomtom_fuel_stations(latitude, longitude, radius_km=10):
 
     return stations
 
-
 def get_tomtom_ev_stations(latitude, longitude, radius_km=10):
-    """Find nearby EV charging stations using TomTom."""
-
     if not TOMTOM_API_KEY:
-        raise RuntimeError("TOMTOM_API_KEY is missing from 1.env.")
+        raise RuntimeError("TOMTOM_API_KEY is missing.")
 
-    url = (
-        "https://api.tomtom.com/search/2/"
-        "poiSearch/electric%20vehicle%20charging%20station.json"
-    )
-
+    url = "https://api.tomtom.com/search/2/poiSearch/electric%20vehicle%20charging%20station.json"
     response = requests.get(
         url,
         params={
@@ -168,7 +166,7 @@ def get_tomtom_ev_stations(latitude, longitude, radius_km=10):
             "lat": latitude,
             "lon": longitude,
             "radius": int(min(max(radius_km, 0.1), 50) * 1000),
-"limit": 100,
+            "limit": 100,
             "countrySet": "IN",
         },
         timeout=20,
@@ -176,7 +174,6 @@ def get_tomtom_ev_stations(latitude, longitude, radius_km=10):
     response.raise_for_status()
 
     stations = []
-
     for item in response.json().get("results", []):
         poi = item.get("poi", {})
         address = item.get("address", {})
@@ -192,159 +189,52 @@ def get_tomtom_ev_stations(latitude, longitude, radius_km=10):
         })
 
     return stations
-# ============================================================
-# HELPER FUNCTIONS
-# ============================================================
-
-
-
-def safe_float(value):
-    """Convert a value to float, or return None if invalid."""
-    try:
-        if value is None or str(value).strip() == "":
-            return None
-        return float(value)
-    except (TypeError, ValueError):
-        return None
-def calculate_distance_km(lat1, lon1, lat2, lon2):
-    earth_radius = 6371.0
-
-    lat1, lon1, lat2, lon2 = map(
-        radians, [lat1, lon1, lat2, lon2]
-    )
-
-    dlat = lat2 - lat1
-    dlon = lon2 - lon1
-
-    a = (
-        sin(dlat / 2) ** 2
-        + cos(lat1) * cos(lat2) * sin(dlon / 2) ** 2
-    )
-
-    a = max(0.0, min(1.0, a))
-
-    return 2 * earth_radius * atan2(
-        sqrt(a), sqrt(1 - a)
-    )
-
-
-def rank_stations_by_distance(stations, latitude, longitude):
-    valid_stations = []
-
-    for station in stations:
-        lat = safe_float(station.get("latitude"))
-        lon = safe_float(station.get("longitude"))
-
-        if lat is None or lon is None:
-            continue
-
-        if not (-90 <= lat <= 90 and -180 <= lon <= 180):
-            continue
-
-        station["distance_km"] = round(
-            calculate_distance_km(latitude, longitude, lat, lon),
-            2
-        )
-
-        valid_stations.append(station)
-
-    valid_stations.sort(key=lambda station: station["distance_km"])
-
-    return valid_stations
 
 # ============================================================
-# C++ ENGINE INTEGRATION
-# IMPORTANT:
-# C++ must accept the raw fields passed below and calculate
-# the usable range. Python must not calculate the range.
+# C++ OOP ENGINE INTEGRATION
 # ============================================================
-
 
 def calculate_cpp_safe_range(vehicle_type, form_data):
-    """Pass maximum range and current energy percentage to C++."""
-
+    """Pass raw vehicle inputs directly to compiled C++ OOP Engine binary."""
     if not os.path.isfile(CPP_EXE):
         raise FileNotFoundError(
-            "C++ executable not found. Compile backend/logic.cpp first."
+            f"C++ executable not found at '{CPP_EXE}'. Compile backend/logic.cpp first."
         )
 
     vehicle_type = vehicle_type.strip().upper()
 
-    # C++ expects title-case names for Petrol, Diesel and Hybrid.
-    cpp_types = {
-        "PETROL": "Petrol",
-        "DIESEL": "Diesel",
-        "EV": "EV",
-        "HYBRID": "Hybrid",
-    }
+    percent = 0.0
+    capacity = 0.0
+    efficiency = 0.0
+    connector = "Type-2"
 
-    if vehicle_type not in cpp_types:
+    if vehicle_type == "EV":
+        percent = safe_float(form_data.get("battery_percent"))
+        capacity = safe_float(form_data.get("battery_capacity"))
+        efficiency = safe_float(form_data.get("efficiency"))
+        connector = form_data.get("connector", "Type-2")
+    elif vehicle_type in ("PETROL", "DIESEL"):
+        percent = safe_float(form_data.get("fuel_percent"))
+        capacity = safe_float(form_data.get("tank_capacity"))
+        efficiency = safe_float(form_data.get("mileage"))
+        connector = "None"
+    elif vehicle_type == "HYBRID":
+        percent = safe_float(form_data.get("fuel_percent"))
+        capacity = safe_float(form_data.get("tank_capacity"))
+        efficiency = safe_float(form_data.get("mileage"))
+        connector = "Type-2"
+    else:
         raise ValueError("Invalid vehicle type.")
 
-    if vehicle_type in ("PETROL", "DIESEL"):
-        tank_capacity = safe_float(form_data.get("tank_capacity"))
-        mileage = safe_float(form_data.get("mileage"))
-        current_percent = safe_float(form_data.get("fuel_percent"))
-
-        if (
-            tank_capacity is None or tank_capacity <= 0
-            or mileage is None or mileage <= 0
-            or current_percent is None
-            or not 0 <= current_percent <= 100
-        ):
-            raise ValueError("Invalid fuel inputs.")
-
-        max_range = tank_capacity * mileage
-
-    elif vehicle_type == "EV":
-        battery_capacity = safe_float(form_data.get("battery_capacity"))
-        efficiency = safe_float(form_data.get("efficiency"))
-        current_percent = safe_float(form_data.get("battery_percent"))
-
-        if (
-            battery_capacity is None or battery_capacity <= 0
-            or efficiency is None or efficiency <= 0
-            or current_percent is None
-            or not 0 <= current_percent <= 100
-        ):
-            raise ValueError("Invalid EV inputs.")
-
-        max_range = battery_capacity * efficiency
-
-    else:
-        tank_capacity = safe_float(form_data.get("tank_capacity"))
-        mileage = safe_float(form_data.get("mileage"))
-        fuel_percent = safe_float(form_data.get("fuel_percent"))
-        battery_percent = safe_float(form_data.get("battery_percent"))
-
-        if (
-            tank_capacity is None or tank_capacity <= 0
-            or mileage is None or mileage <= 0
-            or fuel_percent is None
-            or not 0 <= fuel_percent <= 100
-            or battery_percent is None
-            or not 0 <= battery_percent <= 100
-        ):
-            raise ValueError("Invalid Hybrid inputs.")
-
-        # Assumption: hybrid battery provides 150 km at 100%.
-        full_fuel_range = tank_capacity * mileage
-        full_battery_range = 150.0
-        max_range = full_fuel_range + full_battery_range
-
-        # Convert the two energy percentages into one equivalent
-        # percentage because the current C++ interface accepts one.
-        current_percent = (
-            full_fuel_range * fuel_percent
-            + full_battery_range * battery_percent
-        ) / max_range
-
+    # Execute C++ binary
     result = subprocess.run(
         [
             CPP_EXE,
-            cpp_types[vehicle_type],
-            str(max_range),
-            str(current_percent),
+            vehicle_type,
+            str(percent),
+            str(capacity),
+            str(efficiency),
+            str(connector)
         ],
         cwd=BACKEND_DIR,
         capture_output=True,
@@ -357,202 +247,80 @@ def calculate_cpp_safe_range(vehicle_type, form_data):
     error_output = (result.stderr or "").strip()
 
     if result.returncode != 0:
-        raise RuntimeError(
-            error_output or output or "C++ engine failed."
-        )
+        raise RuntimeError(error_output or output or "C++ engine execution failed.")
 
-    match = re.search(
-        r"Usable\s+Range:\s*([-+]?\d+(?:\.\d+)?)\s*km",
-        output,
-        re.IGNORECASE,
-    )
+    match = re.search(r"Calculated\s+Safe\s+Usable\s+Range:\s*([-+]?\d+(?:\.\d+)?)\s*km", output, re.IGNORECASE)
+    if not match:
+        match = re.search(r"Usable\s+Range:\s*([-+]?\d+(?:\.\d+)?)\s*km", output, re.IGNORECASE)
 
     if not match:
-        raise RuntimeError(
-            "Could not read usable range from C++ output: "
-            + (output or error_output or "No output received.")
-        )
+        raise RuntimeError("Could not parse calculated usable range from C++ output:\n" + output)
 
     return float(match.group(1)), output
 
-
-
 # ============================================================
-# TOMTOM TEST ROUTE
+# API ROUTES
 # ============================================================
 
 @app.route("/test-tomtom")
 def test_tomtom():
     if not TOMTOM_API_KEY:
-        return jsonify({
-            "success": False,
-            "message": "TOMTOM_API_KEY is missing from .env.",
-        }), 500
-
+        return jsonify({"success": False, "message": "TOMTOM_API_KEY missing."}), 500
     try:
-        stations = get_tomtom_fuel_stations(
-            DEFAULT_LATITUDE,
-            DEFAULT_LONGITUDE,
-        )
-
+        stations = get_tomtom_fuel_stations(DEFAULT_LATITUDE, DEFAULT_LONGITUDE)
         return jsonify({
-            "success": True,
-            "message": "TomTom API connection successful.",
-            "station_count": len(stations),
-            "stations": stations,
+            "success": True, 
+            "message": "TomTom API connection successful.", 
+            "station_count": len(stations), 
+            "stations": stations
         })
-
-    except requests.RequestException as exc:
-        app.logger.exception("TomTom request failed")
-        return jsonify({
-            "success": False,
-            "message": f"TomTom request failed: {exc}",
-        }), 502
-
     except Exception as exc:
         app.logger.exception("TomTom test failed")
-        return jsonify({
-            "success": False,
-            "message": str(exc),
-        }), 500
-
-
-# ============================================================
-# FUEL STATION ROUTES
-# ============================================================
-
-@app.route("/test-fuel")
-def test_fuel():
-    try:
-        stations = get_tomtom_fuel_stations(
-            DEFAULT_LATITUDE,
-            DEFAULT_LONGITUDE,
-        )
-
-        return jsonify({
-            "success": True,
-            "count": len(stations),
-            "stations": stations,
-        })
-
-    except Exception as exc:
-        app.logger.exception("Fuel station test failed")
-        return jsonify({
-            "success": False,
-            "message": str(exc),
-        }), 500
-
+        return jsonify({"success": False, "message": str(exc)}), 500
 
 @app.route("/fuel-stations")
 def fuel_stations():
-    
     latitude = safe_float(request.args.get("lat")) or DEFAULT_LATITUDE
     longitude = safe_float(request.args.get("lon")) or DEFAULT_LONGITUDE
-
     try:
         stations = get_tomtom_fuel_stations(latitude, longitude)
-
-        return jsonify({
-            "success": True,
-            "stations": stations,
-        })
-
+        return jsonify({"success": True, "stations": stations})
     except Exception as exc:
         app.logger.exception("Fuel station lookup failed")
-        return jsonify({
-            "success": False,
-            "message": str(exc),
-            "stations": [],
-        }), 500
-
+        return jsonify({"success": False, "message": str(exc), "stations": []}), 500
 
 @app.route("/station-recommendations")
 def station_recommendations():
-    vehicle_type = request.args.get(
-        "vehicle_type", ""
-    ).strip().upper()
-
+    vehicle_type = request.args.get("vehicle_type", "").strip().upper()
     latitude = safe_float(request.args.get("lat"))
     longitude = safe_float(request.args.get("lon"))
     range_km = safe_float(request.args.get("range_km"))
 
     if vehicle_type not in ("PETROL", "DIESEL", "EV", "HYBRID"):
-        return jsonify({
-            "success": False,
-            "message": "Invalid vehicle type.",
-            "stations": []
-        }), 400
+        return jsonify({"success": False, "message": "Invalid vehicle type.", "stations": []}), 400
 
     if latitude is None or longitude is None:
-        return jsonify({
-            "success": False,
-            "message": "Please select your current location first.",
-            "stations": []
-        }), 400
-
-    if not (-90 <= latitude <= 90 and -180 <= longitude <= 180):
-        return jsonify({
-            "success": False,
-            "message": "Invalid location coordinates.",
-            "stations": []
-        }), 400
+        return jsonify({"success": False, "message": "Select current location first.", "stations": []}), 400
 
     if range_km is None or range_km <= 0:
-        return jsonify({
-            "success": False,
-            "message": "Please calculate a valid vehicle range first.",
-            "stations": []
-        }), 400
+        return jsonify({"success": False, "message": "Calculate valid range first.", "stations": []}), 400
 
     try:
         stations = []
-
         if vehicle_type in ("PETROL", "DIESEL", "HYBRID"):
-            fuel_stations = get_tomtom_fuel_stations(
-                latitude, longitude, range_km
-            )
-
-            for station in fuel_stations:
-                station["station_type"] = "Fuel"
-                stations.append(station)
+            fuel_stations = get_tomtom_fuel_stations(latitude, longitude, range_km)
+            for st in fuel_stations:
+                st["station_type"] = "Fuel"
+                stations.append(st)
 
         if vehicle_type in ("EV", "HYBRID"):
-            ev_stations = get_tomtom_ev_stations(
-                latitude, longitude, range_km
-            )
+            ev_stations = get_tomtom_ev_stations(latitude, longitude, range_km)
+            for st in ev_stations:
+                st["station_type"] = "EV Charging"
+                stations.append(st)
 
-            for station in ev_stations:
-                station["station_type"] = "EV Charging"
-                stations.append(station)
-
-
-        app.logger.info("Vehicle range received: %s km", range_km)
-
-# Calculate distances and sort nearest station first
-        stations = rank_stations_by_distance(
-    stations, latitude, longitude
-)
-
-# Keep only stations within the usable vehicle range
-        stations = [
-    station for station in stations
-    if station["distance_km"] <= range_km
-]
-
-# Log the calculated distances
-        for station in stations:
-               app.logger.info(
-        "Station: %s | Distance: %s km",
-        station.get("name"),
-        station.get("distance_km")
-    )
-
-
-        # Keep only stations within the usable vehicle range
-        stations = [
-            station for station in stations
-            if station["distance_km"] <= range_km
-        ]
+        stations = rank_stations_by_distance(stations, latitude, longitude)
+        stations = [st for st in stations if st["distance_km"] <= range_km]
 
         return jsonify({
             "success": True,
@@ -561,41 +329,19 @@ def station_recommendations():
             "count": len(stations),
             "stations": stations
         })
-
     except Exception:
-        app.logger.exception(
-            "Station recommendation lookup failed"
-        )
-
-        return jsonify({
-            "success": False,
-            "message": "Unable to load nearby stations. Please try again.",
-            "stations": []
-        }), 502
-
-# ============================================================
-# CHARGING STATION ROUTE
-# ============================================================
+        app.logger.exception("Station recommendation lookup failed")
+        return jsonify({"success": False, "message": "Unable to load nearby stations.", "stations": []}), 502
 
 @app.route("/charging-stations")
 def charging_stations():
     city = request.args.get("city", DEFAULT_CITY).strip() or DEFAULT_CITY
-
-    stations, db_error = get_stations_safely(city)
-
-    if db_error:
-        return jsonify({
-            "success": False,
-            "message": "Could not retrieve charging stations from MySQL.",
-            "stations": [],
-        }), 500
-
-    return jsonify({
-        "success": True,
-        "count": len(stations),
-        "stations": stations,
-    })
-
+    try:
+        stations = get_available_charging_stations()
+        return jsonify({"success": True, "count": len(stations), "stations": stations})
+    except Exception as exc:
+        app.logger.exception("MySQL charging station lookup failed")
+        return jsonify({"success": False, "message": str(exc), "stations": []}), 500
 
 @app.route("/calculate-route", methods=["GET"])
 def calculate_route():
@@ -604,40 +350,14 @@ def calculate_route():
     dest_lat = safe_float(request.args.get("dest_lat"))
     dest_lon = safe_float(request.args.get("dest_lon"))
 
-    coordinates = [origin_lat, origin_lon, dest_lat, dest_lon]
-
-    if any(value is None for value in coordinates):
-        return jsonify({
-            "success": False,
-            "message": "Origin and destination coordinates are required."
-        }), 400
-
-    if not (
-        -90 <= origin_lat <= 90
-        and -90 <= dest_lat <= 90
-        and -180 <= origin_lon <= 180
-        and -180 <= dest_lon <= 180
-    ):
-        return jsonify({
-            "success": False,
-            "message": "Invalid coordinates."
-        }), 400
+    if any(val is None for val in [origin_lat, origin_lon, dest_lat, dest_lon]):
+        return jsonify({"success": False, "message": "Coordinates are required."}), 400
 
     if not TOMTOM_API_KEY:
-        return jsonify({
-            "success": False,
-            "message": "TomTom API key is missing."
-        }), 500
+        return jsonify({"success": False, "message": "TomTom API key missing."}), 500
 
-    locations = (
-        f"{origin_lat},{origin_lon}:"
-        f"{dest_lat},{dest_lon}"
-    )
-
-    url = (
-        "https://api.tomtom.com/routing/1/"
-        f"calculateRoute/{locations}/json"
-    )
+    locations = f"{origin_lat},{origin_lon}:{dest_lat},{dest_lon}"
+    url = f"https://api.tomtom.com/routing/1/calculateRoute/{locations}/json"
 
     try:
         response = requests.get(
@@ -651,63 +371,38 @@ def calculate_route():
             },
             timeout=20
         )
-
         response.raise_for_status()
-        result = response.json()
-
-        routes = result.get("routes", [])
+        routes = response.json().get("routes", [])
 
         if not routes:
-            return jsonify({
-                "success": False,
-                "message": "TomTom did not return a route."
-            }), 502
+            return jsonify({"success": False, "message": "No route found."}), 502
 
         route = routes[0]
         summary = route.get("summary", {})
-        points = []
-
-        for leg in route.get("legs", []):
-            for point in leg.get("points", []):
-                points.append({
-                    "lat": point["latitude"],
-                    "lon": point["longitude"]
-                })
+        points = [{"lat": p["latitude"], "lon": p["longitude"]} for leg in route.get("legs", []) for p in leg.get("points", [])]
 
         return jsonify({
             "success": True,
-            "distance_km": round(
-                summary.get("lengthInMeters", 0) / 1000, 2
-            ),
-            "travel_time_minutes": round(
-                summary.get("travelTimeInSeconds", 0) / 60
-            ),
+            "distance_km": round(summary.get("lengthInMeters", 0) / 1000, 2),
+            "travel_time_minutes": round(summary.get("travelTimeInSeconds", 0) / 60),
             "points": points
         })
-
-    except requests.RequestException:
-        app.logger.exception("TomTom routing request failed")
-        return jsonify({
-            "success": False,
-            "message": "TomTom routing request failed. Check the API key and Routing API access."
-        }), 502
-    except (ValueError, KeyError, TypeError):
-        app.logger.exception("Invalid TomTom routing response")
-        return jsonify({
-            "success": False,
-            "message": "Unable to process the route response."
-        }), 502
+    except Exception as exc:
+        app.logger.exception("TomTom routing failed")
+        return jsonify({"success": False, "message": str(exc)}), 502
 
 # ============================================================
-# HOME PAGE
+# PAGE ROUTING (HOME LANDING PAGE & MAIN APP)
 # ============================================================
 
+@app.route("/")
+def home():
+    """Default Purple/Black Gradient Landing Page."""
+    return render_template("home.html")
 
-
-@app.route("/", methods=["GET", "POST"])
-
-
+@app.route("/app", methods=["GET", "POST"])
 def index():
+    """Main RouteWise Interactive Application."""
     selected_vehicle = ""
     vehicle_model = ""
     data = {}
@@ -717,34 +412,24 @@ def index():
     safe_range = None
     range_status = None
     active_tab = "vehicle"
+    cpp_route_data = None
 
     if request.method == "GET":
-        selected_vehicle = request.args.get(
-            "vehicle_type", ""
-        ).strip().upper()
+        selected_vehicle = request.args.get("vehicle_type", "").strip().upper()
 
     if request.method == "POST":
         data = request.form.to_dict()
-
-        selected_vehicle = data.get(
-            "vehicle_type", ""
-        ).strip().upper()
-
+        selected_vehicle = data.get("vehicle_type", "").strip().upper()
         vehicle_model = data.get("vehicle_model", "").strip()
 
-        # Validate submitted data
         errors = validate_data(selected_vehicle, data)
 
-        # Calculate range only if validation succeeds
         if not errors:
             try:
-                safe_range, cpp_output = calculate_cpp_safe_range(
-                    selected_vehicle,
-                    data
-                )
+                safe_range, cpp_output = calculate_cpp_safe_range(selected_vehicle, data)
 
                 success = True
-                active_tab = "energy"
+                active_tab = "dashboard"
 
                 if safe_range >= 80:
                     range_status = "Normal"
@@ -753,18 +438,16 @@ def index():
                 else:
                     range_status = "Critical"
 
-                # Fetch database charging stations for EV
-                if selected_vehicle == "EV":
+                if selected_vehicle in ("EV", "HYBRID"):
                     try:
                         stations = get_available_charging_stations()
                     except Exception:
-                        app.logger.exception(
-                            "Unable to retrieve charging stations"
-                        )
-                        errors.append(
-                            "Unable to load charging stations."
-                        )
-                        success = False
+                        app.logger.exception("Unable to load database stations")
+
+                cpp_route_data = {
+                    "safe_range": safe_range,
+                    "cpp_output": cpp_output
+                }
 
             except Exception as exc:
                 app.logger.exception("Safe range calculation failed")
@@ -780,15 +463,14 @@ def index():
         safe_range=safe_range,
         range_status=range_status,
         stations=stations,
-         show_energy=success,
-         active_tab=active_tab,
-         tomtom_map_key=TOMTOM_MAP_KEY
+        show_energy=success,
+        active_tab=active_tab,
+        tomtom_map_key=TOMTOM_MAP_KEY,
+        cpp_route_data=cpp_route_data
     )
 
-
-
 # ============================================================
-# START FLASK
+# START FLASK SERVER
 # ============================================================
 
 if __name__ == "__main__":

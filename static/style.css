@@ -993,3 +993,26 @@ img, video, iframe {
     transition: width 0.5s ease, background 0.5s ease;
     box-shadow: 0 0 10px rgba(16, 185, 129, 0.5);
 }
+/* ============================================================
+   FLOATING ROUTE CARD - COMPACT SIZE FIX
+============================================================ */
+.floating-route-card {
+    padding: 12px 16px !important;
+    max-width: 280px !important;
+}
+
+.floating-route-card h3 {
+    font-size: 0.85rem !important;
+    margin: 4px 0 !important;
+}
+
+.floating-route-card p {
+    font-size: 10px !important;
+    margin-bottom: 4px !important;
+}
+
+.mini-stats-row {
+    font-size: 0.8rem !important;
+    gap: 12px !important;
+    margin-top: 6px !important;
+}

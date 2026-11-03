@@ -19,6 +19,16 @@ function switchTab(tabName) {
         if (step.getAttribute('data-step') === tabName) step.classList.add('active');
     });
 
+    if (tabName === 'dashboard') {
+        // Dashboard open hote hi pehle Fetching Details dikhayega
+        showDashboardFetchingState();
+        setTimeout(() => {
+            let targetPercent = (appConfig.cppRouteData && appConfig.cppRouteData.battery_percent) ? appConfig.cppRouteData.battery_percent : 85;
+            updateEnergyDisplays(targetPercent);
+            startEnergySimulation();
+        }, 1000);
+    }
+
     if (tabName === 'location') {
         setTimeout(() => {
             if (!routewiseMap) initLeafletMap();
@@ -28,16 +38,53 @@ function switchTab(tabName) {
     }
 }
 
+function showDashboardFetchingState() {
+    const energyText = document.getElementById('energyPercent');
+    const rangeKmText = document.getElementById('rangeKm');
+    const energyState = document.getElementById('energyState');
+
+    if (energyText) {
+        energyText.style.fontSize = '1rem';
+        energyText.style.color = '#38bdf8';
+        energyText.textContent = 'Fetching details...';
+    }
+    if (rangeKmText) rangeKmText.textContent = '--';
+    if (energyState) {
+        energyState.textContent = '⚡ Connecting to Telemetry Engine...';
+        energyState.className = 'sim-state';
+        energyState.style.color = '#38bdf8';
+    }
+}
+
 function updateEnergyDisplays(percent) {
     currentEnergyPercent = percent;
     const energyText = document.getElementById('energyPercent');
     const rangeKmText = document.getElementById('rangeKm');
+    const energyState = document.getElementById('energyState');
     
-    if (energyText) energyText.textContent = `${percent}%`;
+    if (energyText) {
+        energyText.style.fontSize = '2.2rem'; // Reset font size once loaded
+        energyText.style.color = '#ffffff';
+        energyText.textContent = `${percent}%`;
+    }
+    
     const remainingKm = Math.max(0, Math.round((safeRangeKm * percent) / 100));
     if (rangeKmText) rangeKmText.textContent = safeRangeKm > 0 ? remainingKm : '--';
 
-    // Update Floating Map Widget Energy Bar
+    if (energyState) {
+        energyState.style.color = '';
+        if (percent <= 20) {
+            energyState.textContent = 'Critical Energy Warning';
+            energyState.className = 'sim-state critical';
+        } else if (percent <= 50) {
+            energyState.textContent = 'Low Energy Margin';
+            energyState.className = 'sim-state low';
+        } else {
+            energyState.textContent = 'Telemetry Active • Normal Operation';
+            energyState.className = 'sim-state';
+        }
+    }
+
     const mapVal = document.getElementById('mapEnergyVal');
     const mapFill = document.getElementById('mapEnergyBarFill');
 
@@ -95,11 +142,14 @@ function createMarkerIcon(color, isFastest = false) {
 
 function loadStationRecommendations() {
     const vType = appConfig.vehicleType || 'EV';
-    const rangeToUse = safeRangeKm > 0 ? safeRangeKm : 50;
     document.getElementById('mapRouteCard').style.display = 'block';
-    document.getElementById('resultStationName').textContent = "Calculating best road routes...";
+    
+    document.getElementById('resultStationName').textContent = "Scanning route & stations...";
+    document.getElementById('resultStationAddress').textContent = "Please wait, fetching live traffic & data...";
+    document.getElementById('routeDistance').textContent = "Loading...";
+    document.getElementById('routeDuration').textContent = "Loading...";
 
-    fetch(`/station-recommendations?vehicle_type=${encodeURIComponent(vType)}&lat=${userCoords.lat}&lon=${userCoords.lon}&range_km=${rangeToUse}`)
+    fetch(`/station-recommendations?vehicle_type=${encodeURIComponent(vType)}&lat=${userCoords.lat}&lon=${userCoords.lon}`)
         .then(res => res.json())
         .then(data => {
             if (data.success && data.stations && data.stations.length > 0) {
@@ -129,11 +179,11 @@ function loadStationRecommendations() {
                     let marker = L.marker([st.latitude, st.longitude], { 
                         icon: createMarkerIcon(pinColor, isFastest), 
                         zIndexOffset: zIndex 
-                    }).bindPopup(`<b>${isFastest ? '🏆 FASTEST: ' : ''}${st.name}</b><br>${st.distance_km} km (${st.travel_time_minutes} mins)`)
+                    }).bindPopup(`<b>${isFastest ? '🏆 FASTEST: ' : ''}${st.name}</b><br>${st.distance_km} km`)
                       .addTo(routewiseMarkersGroup);
                     
                     marker.on('click', function() {
-                        drawRouteOnSideMap(st.name, st.address, st.latitude, st.longitude, isFastest);
+                        drawRouteOnSideMap(st.name, st.address, st.latitude, st.longitude, false);
                     });
                     
                     mapBounds.push([st.latitude, st.longitude]);
@@ -142,7 +192,13 @@ function loadStationRecommendations() {
                 routewiseMap.fitBounds(mapBounds, { padding: [50, 50] });
             } else {
                 document.getElementById('resultStationName').textContent = "No stations found";
+                document.getElementById('resultStationAddress').textContent = "";
             }
+        })
+        .catch(err => {
+            console.error("Loading error:", err);
+            document.getElementById('resultStationName').textContent = "Connection Error";
+            document.getElementById('resultStationAddress').textContent = "Could not fetch station data.";
         });
 }
 
@@ -203,12 +259,6 @@ document.addEventListener('DOMContentLoaded', () => {
         );
     }
     safeRangeKm = (appConfig.cppRouteData && appConfig.cppRouteData.safe_range) ? appConfig.cppRouteData.safe_range : 65;
-
-    const startDashBtn = document.getElementById('startDashboard');
-    if (startDashBtn) {
-        startDashBtn.disabled = false;
-        startDashBtn.addEventListener('click', () => { switchTab('dashboard'); startEnergySimulation(); });
-    }
 
     const initialTab = document.body.getAttribute('data-active-tab') || 'vehicle';
     switchTab(initialTab);

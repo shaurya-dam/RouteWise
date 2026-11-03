@@ -1,11 +1,12 @@
 import os
 import re
+import random
 import subprocess
 from math import radians, sin, cos, sqrt, atan2
 
 import requests
 from dotenv import load_dotenv
-from flask import Flask, jsonify, render_template, request, redirect, url_for
+from flask import Flask, jsonify, render_template, request
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 load_dotenv(os.path.join(BASE_DIR, ".env"))
@@ -32,9 +33,9 @@ class CppEngineBridge:
             raise FileNotFoundError(f"C++ binary missing at '{self.exe_path}'.")
 
         vehicle_type = vehicle_type.strip().upper()
-        percent = self._safe_float(form_data.get("battery_percent" if vehicle_type in ("EV", "HYBRID") else "fuel_percent")) or 0.0
-        capacity = self._safe_float(form_data.get("battery_capacity" if vehicle_type == "EV" else "tank_capacity")) or 0.0
-        efficiency = self._safe_float(form_data.get("efficiency" if vehicle_type == "EV" else "mileage")) or 0.0
+        percent = self._safe_float(form_data.get("battery_percent" if vehicle_type in ("EV", "HYBRID") else "fuel_percent")) or 85.0
+        capacity = self._safe_float(form_data.get("battery_capacity" if vehicle_type == "EV" else "tank_capacity")) or 40.0
+        efficiency = self._safe_float(form_data.get("efficiency" if vehicle_type == "EV" else "mileage")) or 6.0
         connector = form_data.get("connector", "Type-2") if vehicle_type in ("EV", "HYBRID") else "None"
 
         result = subprocess.run(
@@ -42,7 +43,7 @@ class CppEngineBridge:
             cwd=self.backend_dir,
             capture_output=True,
             text=True,
-            timeout=5,
+            timeout=3,
             check=False
         )
 
@@ -69,11 +70,11 @@ class TomTomService:
         self.api_key = api_key
         self.session = requests.Session()
 
-    def get_fuel_stations(self, latitude, longitude, radius_km=10):
+    def get_fuel_stations(self, latitude, longitude, radius_km=15):
         url = "https://api.tomtom.com/search/2/poiSearch/fuel.json"
         response = self.session.get(url, params={
             "key": self.api_key, "lat": latitude, "lon": longitude,
-            "radius": int(min(max(radius_km, 0.1), 50) * 1000), "limit": 20, "countrySet": "IN"
+            "radius": int(min(max(radius_km, 0.1), 50) * 1000), "limit": 15, "countrySet": "IN"
         }, timeout=8)
         response.raise_for_status()
 
@@ -85,11 +86,11 @@ class TomTomService:
             "station_type": "Fuel"
         } for item in response.json().get("results", [])]
 
-    def get_ev_stations(self, latitude, longitude, radius_km=10):
+    def get_ev_stations(self, latitude, longitude, radius_km=15):
         url = "https://api.tomtom.com/search/2/poiSearch/electric%20vehicle%20charging%20station.json"
         response = self.session.get(url, params={
             "key": self.api_key, "lat": latitude, "lon": longitude,
-            "radius": int(min(max(radius_km, 0.1), 50) * 1000), "limit": 20, "countrySet": "IN"
+            "radius": int(min(max(radius_km, 0.1), 50) * 1000), "limit": 15, "countrySet": "IN"
         }, timeout=8)
         response.raise_for_status()
 
@@ -135,34 +136,47 @@ tomtom_service = TomTomService(TOMTOM_API_KEY)
 
 @app.route("/")
 def home():
-    # Primary landing route
     return render_template("home.html")
 
 @app.route("/app", methods=["GET", "POST"])
 def index():
-    selected_vehicle, vehicle_model, data, errors = "", "", {}, []
+    selected_vehicle, data, errors = "EV", {}, []
     success, safe_range, active_tab, cpp_route_data = False, None, "vehicle", None
 
     if request.method == "GET":
-        selected_vehicle = request.args.get("vehicle_type", "").strip().upper()
+        selected_vehicle = request.args.get("vehicle_type", "EV").strip().upper()
 
     if request.method == "POST":
         data = request.form.to_dict()
-        selected_vehicle = data.get("vehicle_type", "").strip().upper()
-        vehicle_model = data.get("vehicle_model", "").strip()
+        selected_vehicle = data.get("vehicle_type", "EV").strip().upper()
+
+        # Generate realistic random telemetry values automatically
+        random_percent = random.randint(72, 92)
+        
+        if selected_vehicle in ("EV", "HYBRID"):
+            data["battery_percent"] = str(random_percent)
+            data["battery_capacity"] = "42"
+            data["efficiency"] = "6.2"
+        if selected_vehicle in ("PETROL", "DIESEL", "HYBRID"):
+            data["fuel_percent"] = str(random_percent)
+            data["tank_capacity"] = "45"
+            data["mileage"] = "16.5"
 
         try:
             safe_range, cpp_output = cpp_engine.calculate_safe_range(selected_vehicle, data)
             success = True
             active_tab = "dashboard"
-            cpp_route_data = {"safe_range": safe_range, "cpp_output": cpp_output}
+            cpp_route_data = {
+                "safe_range": safe_range, 
+                "cpp_output": cpp_output,
+                "battery_percent": random_percent
+            }
         except Exception as exc:
             errors.append(str(exc))
 
     return render_template(
         "index.html",
         selected_vehicle=selected_vehicle,
-        vehicle_model=vehicle_model,
         data=data,
         errors=errors,
         success=success,
@@ -178,32 +192,30 @@ def station_recommendations():
     vehicle_type = request.args.get("vehicle_type", "").strip().upper()
     lat = float(request.args.get("lat") or DEFAULT_LATITUDE)
     lon = float(request.args.get("lon") or DEFAULT_LONGITUDE)
-    range_km = float(request.args.get("range_km") or 50)
 
     try:
         stations = []
         if vehicle_type in ("PETROL", "DIESEL", "HYBRID"):
-            stations.extend(tomtom_service.get_fuel_stations(lat, lon, range_km))
+            stations.extend(tomtom_service.get_fuel_stations(lat, lon, radius_km=15))
 
         if vehicle_type in ("EV", "HYBRID"):
-            stations.extend(tomtom_service.get_ev_stations(lat, lon, range_km))
+            stations.extend(tomtom_service.get_ev_stations(lat, lon, radius_km=15))
 
         evaluated_stations = []
-        for st in stations[:10]:
+        for st in stations[:8]:
             route_info = tomtom_service.calculate_traffic_route(lat, lon, st["latitude"], st["longitude"])
-            if route_info and route_info["distance_km"] <= range_km:
+            if route_info:
                 st["distance_km"] = route_info["distance_km"]
                 st["travel_time_minutes"] = route_info["travel_time_minutes"]
                 st["traffic_delay_minutes"] = route_info["traffic_delay_minutes"]
                 evaluated_stations.append(st)
 
-        evaluated_stations.sort(key=lambda s: (s["travel_time_minutes"], s["distance_km"]))
+        evaluated_stations.sort(key=lambda s: (s["distance_km"], s["travel_time_minutes"]))
         top_5 = evaluated_stations[:5]
 
         return jsonify({
             "success": True,
             "vehicle_type": vehicle_type,
-            "range_km": range_km,
             "count": len(top_5),
             "stations": top_5
         })

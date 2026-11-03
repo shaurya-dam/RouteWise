@@ -9,7 +9,7 @@
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 </head>
 
-<body data-theme="dark" data-active-tab="vehicle" data-vehicle-type="{{ selected_vehicle or '' }}">
+<body data-theme="dark" data-active-tab="{{ active_tab or 'vehicle' }}" data-vehicle-type="{{ selected_vehicle or '' }}">
 
 <header class="header">
   <div class="header-inner">
@@ -27,46 +27,58 @@
 <main class="page">
   <!-- PROGRESS STEPPER -->
   <section class="stepper" aria-label="RouteWise progress">
-    <div class="step active" data-step="vehicle"><div class="step-circle">1</div><span>Vehicle</span></div>
+    <div class="step {% if active_tab == 'vehicle' or not active_tab %}active{% endif %}" data-step="vehicle"><div class="step-circle">1</div><span>Vehicle</span></div>
     <div class="step-line"></div>
-    <div class="step" data-step="dashboard"><div class="step-circle">2</div><span>Dashboard</span></div>
+    <div class="step {% if active_tab == 'dashboard' %}active{% endif %}" data-step="dashboard"><div class="step-circle">2</div><span>Dashboard</span></div>
     <div class="step-line"></div>
-    <div class="step" data-step="location"><div class="step-circle">3</div><span>Live Route</span></div>
+    <div class="step {% if active_tab == 'location' %}active{% endif %}" data-step="location"><div class="step-circle">3</div><span>Route & Stations</span></div>
   </section>
 
   <!-- TAB 1: VEHICLE SELECTION -->
-  <section id="tab-vehicle" class="tab-content">
+  <section id="tab-vehicle" class="tab-content {% if active_tab and active_tab != 'vehicle' %}hidden{% endif %}">
     <section class="card form-card">
       <div class="card-header"><h2>Vehicle Information</h2></div>
-      <div class="block">
-        <div class="block-label">Select Vehicle Type</div>
-        <div class="vehicle-grid">
-          <a href="{{ url_for('index', vehicle_type='PETROL') }}" class="vehicle-card {% if selected_vehicle == 'PETROL' %}selected{% endif %}">
-            <div class="vehicle-card-top"><div class="vehicle-icon">⛽</div><div class="radio-dot"></div></div>
-            <div class="vehicle-name">Petrol</div><div class="vehicle-description">Fuel Powered</div>
-          </a>
-          <a href="{{ url_for('index', vehicle_type='EV') }}" class="vehicle-card {% if selected_vehicle == 'EV' %}selected{% endif %}">
-            <div class="vehicle-card-top"><div class="vehicle-icon">⚡</div><div class="radio-dot"></div></div>
-            <div class="vehicle-name">Electric</div><div class="vehicle-description">Battery Powered</div>
-          </a>
-          <a href="{{ url_for('index', vehicle_type='HYBRID') }}" class="vehicle-card {% if selected_vehicle == 'HYBRID' %}selected{% endif %}">
-            <div class="vehicle-card-top"><div class="vehicle-icon">↻</div><div class="radio-dot"></div></div>
-            <div class="vehicle-name">Hybrid</div><div class="vehicle-description">Dual Engine</div>
-          </a>
-        </div>
-      </div>
-      {% if selected_vehicle %}
-      <input type="hidden" id="latitude" name="latitude">
-      <input type="hidden" id="longitude" name="longitude">
-      <div class="form-actions">
-        <button type="button" id="startDashboard" class="primary-button" disabled>Start Dashboard →</button>
+      
+      {% if errors %}
+      <div class="error-box" style="background: rgba(239, 68, 68, 0.15); border: 1px solid #ef4444; padding: 12px; border-radius: 8px; margin-bottom: 15px; color: #fca5a5;">
+        {% for err in errors %}
+          <p>⚠️ {{ err }}</p>
+        {% endfor %}
       </div>
       {% endif %}
+
+      <form method="POST" action="{{ url_for('index', vehicle_type=selected_vehicle) }}">
+        <input type="hidden" name="vehicle_type" value="{{ selected_vehicle or 'EV' }}">
+        
+        <div class="block">
+          <div class="block-label">Select Vehicle Type</div>
+          <div class="vehicle-grid">
+            <a href="{{ url_for('index', vehicle_type='PETROL') }}" class="vehicle-card {% if selected_vehicle == 'PETROL' %}selected{% endif %}">
+              <div class="vehicle-card-top"><div class="vehicle-icon">⛽</div><div class="radio-dot"></div></div>
+              <div class="vehicle-name">Petrol</div><div class="vehicle-description">Fuel Powered</div>
+            </a>
+            <a href="{{ url_for('index', vehicle_type='EV') }}" class="vehicle-card {% if selected_vehicle == 'EV' or not selected_vehicle %}selected{% endif %}">
+              <div class="vehicle-card-top"><div class="vehicle-icon">⚡</div><div class="radio-dot"></div></div>
+              <div class="vehicle-name">Electric</div><div class="vehicle-description">Battery Powered</div>
+            </a>
+            <a href="{{ url_for('index', vehicle_type='HYBRID') }}" class="vehicle-card {% if selected_vehicle == 'HYBRID' %}selected{% endif %}">
+              <div class="vehicle-card-top"><div class="vehicle-icon">↻</div><div class="radio-dot"></div></div>
+              <div class="vehicle-name">Hybrid</div><div class="vehicle-description">Dual Engine</div>
+            </a>
+          </div>
+        </div>
+
+        <div class="form-actions" style="margin-top: 25px;">
+          <button type="submit" class="primary-button" style="width: 100%; padding: 14px; font-size: 1rem;">
+            Generate Telemetry & Calculate Range →
+          </button>
+        </div>
+      </form>
     </section>
   </section>
 
   <!-- TAB 2: DASHBOARD -->
-  <section id="tab-dashboard" class="tab-content hidden">
+  <section id="tab-dashboard" class="tab-content {% if active_tab != 'dashboard' %}hidden{% endif %}">
     <section class="card sim-dashboard">
       <div class="sim-head">
         <div>
@@ -77,44 +89,47 @@
       </div>
       <div class="sim-main">
         <div class="sim-gauge" id="simGauge">
-          <div class="sim-gauge-inner"><strong id="energyPercent">--%</strong><span>ENERGY</span></div>
+          <div class="sim-gauge-inner">
+            <strong id="energyPercent" style="font-size: 1rem; color: #38bdf8;">Fetching details...</strong>
+            <span>ENERGY</span>
+          </div>
         </div>
         <div class="sim-readout">
-          <div class="range-heading"><span class="range-caption">ESTIMATED RANGE</span></div>
-          <div class="range-number"><span id="rangeKm">--</span><small>km</small></div>
+          <div class="range-heading"><span class="range-caption">ESTIMATED SAFE RANGE</span></div>
+          <div class="range-number"><span id="rangeKm">{{ safe_range if safe_range else '--' }}</span><small>km</small></div>
           <div class="range-divider"></div>
-          <div class="sim-state" id="energyState">Starting simulation…</div>
+          <div class="sim-state" id="energyState" style="color: #38bdf8;">⚡ Connecting to Telemetry Engine...</div>
         </div>
       </div>
       <div class="form-actions">
         <button type="button" class="secondary-button" onclick="switchTab('vehicle')">← Back</button>
-        <button type="button" class="primary-button" onclick="switchTab('location')">Find Routes Now →</button>
+        <button type="button" class="primary-button" onclick="switchTab('location')">Plan Journey & Stations →</button>
       </div>
     </section>
   </section>
 
-  <!-- TAB 3: FULL SCREEN MAP WITH LIVE ENERGY BAR -->
-  <section id="tab-location" class="tab-content hidden">
+  <!-- TAB 3: FULL SCREEN MAP -->
+  <section id="tab-location" class="tab-content {% if active_tab != 'location' %}hidden{% endif %}">
     <div class="full-map-wrapper">
       
-      <!-- TOP LEFT: FLOATING ROUTE DETAILS -->
+      <!-- TOP LEFT: FLOATING ROUTE CARD -->
       <div class="floating-route-card" id="mapRouteCard" style="display: none;">
-        <span id="routeBadge" style="color: #10b981; font-size: 10px; font-weight: 900; letter-spacing: 1px; text-transform: uppercase;">🏆 Fastest Route</span>
-        <h3 id="resultStationName">Calculating...</h3>
-        <p id="resultStationAddress" style="font-size: 11px; color: #94a3b8; margin-bottom: 8px;"></p>
+        <span id="routeBadge" style="color: #10b981; font-size: 10px; font-weight: 900; letter-spacing: 1px;">🗺️ ROUTE SCANNER</span>
+        <h3 id="resultStationName">Scanning...</h3>
+        <p id="resultStationAddress" style="font-size: 11px; color: #94a3b8; margin-bottom: 6px;"></p>
         <div class="mini-stats-row">
           <div>Dist: <strong id="routeDistance" style="color: #38bdf8;">—</strong></div>
           <div>Time: <strong id="routeDuration" style="color: #38bdf8;">—</strong></div>
         </div>
-        <button type="button" class="secondary-button" style="margin-top: 15px; width: 100%; height: 34px; padding: 0;" onclick="switchTab('dashboard')">← Back to Dashboard</button>
+        <button type="button" class="secondary-button" style="margin-top: 12px; width: 100%; height: 32px; padding: 0;" onclick="switchTab('dashboard')">← Dashboard</button>
       </div>
 
-      <!-- TOP RIGHT: GOOD-LOOKING COMPACT ENERGY BAR OVERLAY -->
+      <!-- TOP RIGHT: ENERGY BAR WIDGET -->
       <div class="map-energy-widget">
         <div class="energy-widget-header">
           <span class="energy-icon">⚡</span>
           <span class="energy-label">ENERGY LEVEL</span>
-          <strong id="mapEnergyVal" class="energy-val">85%</strong>
+          <strong id="mapEnergyVal" class="energy-val">--%</strong>
         </div>
         <div class="energy-bar-track">
           <div id="mapEnergyBarFill" class="energy-bar-fill" style="width: 85%;"></div>
@@ -130,14 +145,14 @@
 
 <script id="routewise-config-data" type="application/json">
 {
-  "vehicleType": {{ (selected_vehicle | default('')) | tojson }},
+  "vehicleType": {{ (selected_vehicle | default('EV')) | tojson }},
   "cppRouteData": {{ (cpp_route_data | default(none)) | tojson }},
   "tomtomMapKey": {{ (tomtom_map_key | default('KAPybFJvNpPrXre1o4F2dy7ywR0IYTtB')) | tojson }}
 }
 </script>
 <script>
   try { window.RouteWiseConfig = JSON.parse(document.getElementById('routewise-config-data').textContent); } 
-  catch(e) { window.RouteWiseConfig = { vehicleType: '', cppRouteData: null }; }
+  catch(e) { window.RouteWiseConfig = { vehicleType: 'EV', cppRouteData: null }; }
 </script>
 <script src="{{ url_for('static', filename='script.js') }}"></script>
 </body>

@@ -1,6 +1,9 @@
 let currentEnergyPercent = 85;
 let simulationInterval = null;
 let dashboardTimeout = null;
+let criticalWarningShown = false;   // 20% warning ek hi baar dikhe
+let energyReady = false;          // start battery % sirf ek baar set ho
+const DROP_INTERVAL_MS = 3000;    // har 3 second me 1% battery kam (chahe to badal lo)
 let safeRangeKm = 0;
 let userCoords = { lat: 30.3165, lon: 78.0322 };
 
@@ -23,7 +26,6 @@ function switchTab(tabName) {
     currentTab = tabName;
 
     // Purane timers band karo
-    if (simulationInterval) { clearInterval(simulationInterval); simulationInterval = null; }
     if (dashboardTimeout) { clearTimeout(dashboardTimeout); dashboardTimeout = null; }
 
     document.querySelectorAll('.tab-content').forEach(tab => { tab.classList.add('hidden'); });
@@ -38,16 +40,16 @@ function switchTab(tabName) {
     if (tabName === 'dashboard') {
         showDashboardFetchingState();
         dashboardTimeout = setTimeout(() => {
-            const targetPercent = (appConfig.cppRouteData && appConfig.cppRouteData.battery_percent)
-                ? appConfig.cppRouteData.battery_percent
-                : currentEnergyPercent;
-            updateEnergyDisplays(targetPercent);
+            initEnergy();
+            updateEnergyDisplays(currentEnergyPercent);
             startEnergySimulation();
         }, 900);
     }
 
     if (tabName === 'location') {
+        initEnergy();
         updateEnergyDisplays(currentEnergyPercent);
+        startEnergySimulation();
         // Tab ab visible hai, isliye thoda ruk ke map banao taaki size sahi mile
         setTimeout(() => {
             if (!routewiseMap) initLeafletMap();
@@ -77,6 +79,7 @@ function showDashboardFetchingState() {
 
 function updateEnergyDisplays(percent) {
     currentEnergyPercent = percent;
+    checkCriticalWarning(percent);
     const energyText = document.getElementById('energyPercent');
     const rangeKmText = document.getElementById('rangeKm');
     const energyState = document.getElementById('energyState');
@@ -124,12 +127,51 @@ function updateEnergyDisplays(percent) {
     }
 }
 
+// ---------- 20% se kam hone par popup ----------
+function checkCriticalWarning(percent) {
+    const modal = document.getElementById('energyModal');
+    if (!modal) return;
+
+    if (percent <= 20) {
+        setText('modalEnergyVal', `${percent}%`);      // popup khula ho to live update
+        if (!criticalWarningShown) {
+            criticalWarningShown = true;
+            modal.classList.remove('hidden');
+        }
+    } else {
+        criticalWarningShown = false;                   // battery wapas badhi to dobara warning chalegi
+        modal.classList.add('hidden');
+    }
+}
+
+function closeEnergyModal() {
+    const modal = document.getElementById('energyModal');
+    if (modal) modal.classList.add('hidden');
+}
+
+function goToStations() {
+    closeEnergyModal();
+    if (currentTab !== 'location') switchTab('location');
+}
+
+function initEnergy() {
+    // Pehli baar server se aaya battery % lo; baad me current % hi chalta rahe
+    if (energyReady) return;
+    const start = appConfig.cppRouteData && appConfig.cppRouteData.battery_percent;
+    if (start) currentEnergyPercent = start;
+    energyReady = true;
+}
+
 function startEnergySimulation() {
-    if (simulationInterval) clearInterval(simulationInterval);
+    if (simulationInterval) return;      // pehle se chal raha hai to dobara start mat karo
     simulationInterval = setInterval(() => {
-        if (currentEnergyPercent > 5) updateEnergyDisplays(currentEnergyPercent - 1);
-        else { clearInterval(simulationInterval); simulationInterval = null; }
-    }, 10000);
+        if (currentEnergyPercent > 5) {
+            updateEnergyDisplays(currentEnergyPercent - 1);
+        } else {
+            clearInterval(simulationInterval);
+            simulationInterval = null;
+        }
+    }, DROP_INTERVAL_MS);
 }
 
 function initLeafletMap() {

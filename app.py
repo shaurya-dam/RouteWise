@@ -2,12 +2,13 @@ import os
 import re
 import random
 import subprocess
-from concurrent.futures import ThreadPoolExecutor
 from math import radians, sin, cos, sqrt, atan2
 
 import requests
 from dotenv import load_dotenv
 from flask import Flask, jsonify, render_template, request
+
+import routing  # apna A* routing (routing.py)
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -206,97 +207,31 @@ class RoutingAndStationService:
             })
         return results
 
-    def calculate_route(self, origin_lat, origin_lon, dest_lat, dest_lon):
-        if self.api_key:
-            try:
-                route = self._tomtom_route(origin_lat, origin_lon, dest_lat, dest_lon)
-                if route:
-                    return route
-            except Exception:
-                pass
-        return self._osrm_route(origin_lat, origin_lon, dest_lat, dest_lon)
-
-    def _tomtom_route(self, origin_lat, origin_lon, dest_lat, dest_lon):
-        locations = f"{origin_lat},{origin_lon}:{dest_lat},{dest_lon}"
-        url = f"https://api.tomtom.com/routing/1/calculateRoute/{locations}/json"
-        response = self.session.get(
-            url,
-            params={
-                "key": self.api_key,
-                "travelMode": "car",
-                "routeType": "fastest",
-                "traffic": "true",
-                "routeRepresentation": "polyline"
-            },
-            timeout=10
-        )
-        if response.status_code in (401, 403):
-            self.api_key = ""   # key galat/expired: aage se TomTom skip, free OSM/OSRM use hoga
-            raise RuntimeError("TomTom API key invalid")
-        response.raise_for_status()
-
-        routes = response.json().get("routes", [])
-        if not routes:
-            return None
-
-        route = routes[0]
-        summary = route.get("summary", {})
-        points = [
-            {"lat": p["latitude"], "lon": p["longitude"]}
-            for leg in route.get("legs", [])
-            for p in leg.get("points", [])
-        ]
-        return {
-            "distance_km": round(summary.get("lengthInMeters", 0) / 1000, 2),
-            "travel_time_minutes": max(1, round(summary.get("travelTimeInSeconds", 0) / 60)),
-            "traffic_delay_minutes": round(summary.get("trafficDelayInSeconds", 0) / 60),
-            "points": points
-        }
-
-    def _osrm_route(self, origin_lat, origin_lon, dest_lat, dest_lon):
-        url = f"https://router.project-osrm.org/route/v1/driving/{origin_lon},{origin_lat};{dest_lon},{dest_lat}"
-        response = self.session.get(
-            url,
-            params={"overview": "full", "geometries": "geojson"},
-            timeout=10
-        )
-        response.raise_for_status()
-
-        routes = response.json().get("routes", [])
-        if not routes:
-            return None
-
-        route = routes[0]
-        coords = route.get("geometry", {}).get("coordinates", [])
-        points = [{"lat": c[1], "lon": c[0]} for c in coords]
-        return {
-            "distance_km": round(route.get("distance", 0) / 1000, 2),
-            "travel_time_minutes": max(1, round(route.get("duration", 0) / 60)),
-            "traffic_delay_minutes": 0,
-            "points": points
-        }
-
 
 cpp_engine = CppEngineBridge(os.path.join(BASE_DIR, "backend"))
-station_service = RoutingAndStationService(TOMTOM_API_KEY)
+station_service = RoutingAndStationService(TOMTOM_API_KEY)   # sirf station (POI) dhundne ke liye
 
 
-def _evaluate_station(lat, lon, st):
-    """Route nikalo; fail ho to straight-line estimate se fallback (marker phir bhi dikhega)."""
-    try:
-        info = station_service.calculate_route(lat, lon, st["latitude"], st["longitude"])
-    except Exception:
-        info = None
+def _evaluate_station(graph, lat, lon, st):
+    """Apne A* se route nikalo; na mile to straight-line estimate."""
+    info = None
+    if graph is not None:
+        try:
+            info = routing.find_route(graph, lat, lon, st["latitude"], st["longitude"])
+        except Exception:
+            info = None
 
     if info:
         st["distance_km"] = info["distance_km"]
         st["travel_time_minutes"] = info["travel_time_minutes"]
         st["traffic_delay_minutes"] = info["traffic_delay_minutes"]
+        st["route_source"] = "A*"
     else:
         d = round(_haversine_km(lat, lon, st["latitude"], st["longitude"]) * 1.3, 2)
         st["distance_km"] = d
         st["travel_time_minutes"] = max(1, round(d / 30 * 60))
         st["traffic_delay_minutes"] = 0
+        st["route_source"] = "estimate"
     return st
 
 
@@ -361,12 +296,18 @@ def station_recommendations():
     try:
         lat = float(request.args.get("lat") or DEFAULT_LATITUDE)
         lon = float(request.args.get("lon") or DEFAULT_LONGITUDE)
-        stations = station_service.get_stations(vehicle_type, lat, lon, radius_km=15)
+        stations = station_service.get_stations(vehicle_type, lat, lon, radius_km=15)[:5]
 
-        # Nearest 5 stations ke routes parallel me nikalo
-        with ThreadPoolExecutor(max_workers=5) as ex:
-            evaluated = list(ex.map(lambda s: _evaluate_station(lat, lon, s), stations[:5]))
+        # Ek hi road graph origin + saare stations ke liye, phir har station par A*
+        graph = None
+        if stations:
+            points = [(lat, lon)] + [(s["latitude"], s["longitude"]) for s in stations]
+            try:
+                graph = routing.get_graph(points)
+            except Exception:
+                graph = None
 
+        evaluated = [_evaluate_station(graph, lat, lon, s) for s in stations]
         evaluated.sort(key=lambda s: (s["distance_km"], s["travel_time_minutes"]))
 
         return jsonify({
@@ -387,7 +328,8 @@ def calculate_route():
         dest_lat = float(request.args.get("dest_lat"))
         dest_lon = float(request.args.get("dest_lon"))
 
-        route_data = station_service.calculate_route(origin_lat, origin_lon, dest_lat, dest_lon)
+        graph = routing.get_graph([(origin_lat, origin_lon), (dest_lat, dest_lon)])
+        route_data = routing.find_route(graph, origin_lat, origin_lon, dest_lat, dest_lon)
         if not route_data:
             return jsonify({"success": False, "message": "No route found."}), 502
 

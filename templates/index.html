@@ -143,6 +143,23 @@
   </section>
 </main>
 
+<!-- CRITICAL ENERGY WARNING POPUP (20% se kam hone par) -->
+<div id="energyModal" class="energy-modal hidden" role="alertdialog" aria-modal="true" aria-labelledby="energyModalTitle">
+  <div class="energy-modal-card">
+    <div class="critical-icon">!</div>
+    <h3 id="energyModalTitle">Critical Energy Warning</h3>
+    <p style="color: #94a3b8; font-size: 13px; margin-top: 6px;">Energy level 20% se neeche chala gaya hai. Jaldi nearest station par jaiye.</p>
+    <div class="critical-reading">
+      <span>Energy Level</span>
+      <strong id="modalEnergyVal">--%</strong>
+    </div>
+    <div class="modal-actions">
+      <button type="button" class="secondary-button" onclick="closeEnergyModal()">Dismiss</button>
+      <button type="button" class="primary-button" onclick="goToStations()">Find Nearest Station →</button>
+    </div>
+  </div>
+</div>
+
 <script id="routewise-config-data" type="application/json">
 {
   "vehicleType": {{ (selected_vehicle | default('EV')) | tojson }},
@@ -153,6 +170,6 @@
   try { window.RouteWiseConfig = JSON.parse(document.getElementById('routewise-config-data').textContent); } 
   catch(e) { window.RouteWiseConfig = { vehicleType: 'EV', cppRouteData: null }; }
 </script>
-<script src="{{ url_for('static', filename='script.js', v='7') }}"></script>
+<script src="{{ url_for('static', filename='script.js', v='9') }}"></script>
 </body>
 </html>

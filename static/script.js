@@ -1,15 +1,31 @@
 let currentEnergyPercent = 85;
 let simulationInterval = null;
+let dashboardTimeout = null;
 let safeRangeKm = 0;
-let userCoords = { lat: 30.3165, lon: 78.0322 }; 
+let userCoords = { lat: 30.3165, lon: 78.0322 };
 
 let routewiseMap = null;
 let routewiseMarkersGroup = null;
 let routewisePolyline = null;
 
-const appConfig = window.RouteWiseConfig || { vehicleType: '', cppRouteData: null, tomtomMapKey: 'KAPybFJvNpPrXre1o4F2dy7ywR0IYTtB' };
+let stationRequestId = 0;   // purani/duplicate requests ignore karne ke liye
+let routeRequestId = 0;
+let currentTab = 'vehicle';
+
+const appConfig = window.RouteWiseConfig || { vehicleType: 'EV', cppRouteData: null };
+
+function setText(id, text) {
+    const el = document.getElementById(id);
+    if (el) el.textContent = text;
+}
 
 function switchTab(tabName) {
+    currentTab = tabName;
+
+    // Purane timers band karo
+    if (simulationInterval) { clearInterval(simulationInterval); simulationInterval = null; }
+    if (dashboardTimeout) { clearTimeout(dashboardTimeout); dashboardTimeout = null; }
+
     document.querySelectorAll('.tab-content').forEach(tab => { tab.classList.add('hidden'); });
     const targetTab = document.getElementById(`tab-${tabName}`);
     if (targetTab) targetTab.classList.remove('hidden');
@@ -20,21 +36,24 @@ function switchTab(tabName) {
     });
 
     if (tabName === 'dashboard') {
-        // Dashboard open hote hi pehle Fetching Details dikhayega
         showDashboardFetchingState();
-        setTimeout(() => {
-            let targetPercent = (appConfig.cppRouteData && appConfig.cppRouteData.battery_percent) ? appConfig.cppRouteData.battery_percent : 85;
+        dashboardTimeout = setTimeout(() => {
+            const targetPercent = (appConfig.cppRouteData && appConfig.cppRouteData.battery_percent)
+                ? appConfig.cppRouteData.battery_percent
+                : currentEnergyPercent;
             updateEnergyDisplays(targetPercent);
             startEnergySimulation();
-        }, 1000);
+        }, 900);
     }
 
     if (tabName === 'location') {
+        updateEnergyDisplays(currentEnergyPercent);
+        // Tab ab visible hai, isliye thoda ruk ke map banao taaki size sahi mile
         setTimeout(() => {
             if (!routewiseMap) initLeafletMap();
-            else routewiseMap.invalidateSize();
+            if (routewiseMap) routewiseMap.invalidateSize();
             loadStationRecommendations();
-        }, 150);
+        }, 200);
     }
 }
 
@@ -61,13 +80,13 @@ function updateEnergyDisplays(percent) {
     const energyText = document.getElementById('energyPercent');
     const rangeKmText = document.getElementById('rangeKm');
     const energyState = document.getElementById('energyState');
-    
+
     if (energyText) {
-        energyText.style.fontSize = '2.2rem'; // Reset font size once loaded
+        energyText.style.fontSize = '2.2rem';
         energyText.style.color = '#ffffff';
         energyText.textContent = `${percent}%`;
     }
-    
+
     const remainingKm = Math.max(0, Math.round((safeRangeKm * percent) / 100));
     if (rangeKmText) rangeKmText.textContent = safeRangeKm > 0 ? remainingKm : '--';
 
@@ -109,55 +128,99 @@ function startEnergySimulation() {
     if (simulationInterval) clearInterval(simulationInterval);
     simulationInterval = setInterval(() => {
         if (currentEnergyPercent > 5) updateEnergyDisplays(currentEnergyPercent - 1);
-        else clearInterval(simulationInterval);
-    }, 10000); 
+        else { clearInterval(simulationInterval); simulationInterval = null; }
+    }, 10000);
 }
 
 function initLeafletMap() {
     const mapContainer = document.getElementById('sideMap');
     if (!mapContainer || routewiseMap) return;
+    if (typeof L === 'undefined') {
+        console.error('Leaflet load nahi hua (unpkg.com blocked ya internet issue).');
+        setText('resultStationName', 'Map library load nahi hui');
+        return;
+    }
 
-    routewiseMap = L.map('sideMap').setView([userCoords.lat, userCoords.lon], 13);
-    const apiKey = (appConfig && appConfig.tomtomMapKey) ? appConfig.tomtomMapKey : 'KAPybFJvNpPrXre1o4F2dy7ywR0IYTtB';
+    routewiseMap = L.map('sideMap', { zoomControl: true }).setView([userCoords.lat, userCoords.lon], 13);
 
-    L.tileLayer(`https://{s}.api.tomtom.com/map/1/tile/basic/night/{z}/{x}/{y}.png?key=${apiKey}`, {
-        attribution: '&copy; TomTom &copy; OpenStreetMap', subdomains: 'abcd', maxZoom: 19
+    // OpenStreetMap tiles (free, API key nahi chahiye). Dark look CSS filter (.dark-tiles) se aata hai.
+    const tiles = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+        maxZoom: 19,
+        className: 'dark-tiles'
     }).addTo(routewiseMap);
-    
+
+    // Agar OSM tiles fail hon to Esri (bhi free, key-less) par fallback
+    let tileErrors = 0;
+    tiles.on('tileerror', () => {
+        tileErrors++;
+        if (tileErrors === 5 && routewiseMap) {
+            routewiseMap.removeLayer(tiles);
+            L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}', {
+                attribution: 'Tiles &copy; Esri',
+                maxZoom: 19,
+                className: 'dark-tiles'
+            }).addTo(routewiseMap);
+        }
+    });
+
     routewiseMarkersGroup = L.layerGroup().addTo(routewiseMap);
+    setTimeout(() => { if (routewiseMap) routewiseMap.invalidateSize(); }, 250);
 }
 
 function createMarkerIcon(color, isFastest = false) {
     const size = isFastest ? 26 : 20;
     const border = isFastest ? '4px solid #ffffff' : '2px solid #ffffff';
     const shadow = isFastest ? `0 0 20px ${color}` : `0 0 10px ${color}`;
-    
+
     return L.divIcon({
         className: 'custom-pin',
         html: `<div style="background-color: ${color}; width: ${size}px; height: ${size}px; border-radius: 50%; border: ${border}; box-shadow: ${shadow};"></div>`,
-        iconSize: [size, size], 
-        iconAnchor: [size/2, size/2]
+        iconSize: [size, size],
+        iconAnchor: [size / 2, size / 2]
     });
 }
 
+function addUserMarker() {
+    if (!routewiseMarkersGroup) return;
+    L.marker([userCoords.lat, userCoords.lon], { icon: createMarkerIcon('#38bdf8'), zIndexOffset: 500 })
+        .bindPopup("<b>📍 Your Location</b>").addTo(routewiseMarkersGroup);
+}
+
 function loadStationRecommendations() {
+    if (!routewiseMap) initLeafletMap();
+    if (!routewiseMap) return;
+
+    const myRequest = ++stationRequestId;
     const vType = appConfig.vehicleType || 'EV';
-    document.getElementById('mapRouteCard').style.display = 'block';
-    
-    document.getElementById('resultStationName').textContent = "Scanning route & stations...";
-    document.getElementById('resultStationAddress').textContent = "Please wait, fetching live traffic & data...";
-    document.getElementById('routeDistance').textContent = "Loading...";
-    document.getElementById('routeDuration').textContent = "Loading...";
+
+    const routeCard = document.getElementById('mapRouteCard');
+    if (routeCard) routeCard.style.display = 'block';
+
+    setText('resultStationName', "Scanning route & stations...");
+    setText('resultStationAddress', "Please wait, finding nearest road route...");
+    setText('routeDistance', "Loading...");
+    setText('routeDuration', "Loading...");
+
+    if (routewiseMarkersGroup) {
+        routewiseMarkersGroup.clearLayers();
+        addUserMarker();
+    }
+    if (routewisePolyline) {
+        routewiseMap.removeLayer(routewisePolyline);
+        routewisePolyline = null;
+    }
 
     fetch(`/station-recommendations?vehicle_type=${encodeURIComponent(vType)}&lat=${userCoords.lat}&lon=${userCoords.lon}`)
         .then(res => res.json())
         .then(data => {
-            if (data.success && data.stations && data.stations.length > 0) {
-                routewiseMarkersGroup.clearLayers();
-                let mapBounds = [[userCoords.lat, userCoords.lon]];
+            if (myRequest !== stationRequestId) return;   // purani request ignore
 
-                L.marker([userCoords.lat, userCoords.lon], { icon: createMarkerIcon('#38bdf8'), zIndexOffset: 500 })
-                    .bindPopup("<b>📍 Your Location</b>").addTo(routewiseMarkersGroup);
+            if (data.success && data.stations && data.stations.length > 0 && routewiseMarkersGroup) {
+                routewiseMarkersGroup.clearLayers();
+                const mapBounds = [[userCoords.lat, userCoords.lon]];
+
+                addUserMarker();
 
                 const fastest = data.stations[0];
                 drawRouteOnSideMap(fastest.name, fastest.address, fastest.latitude, fastest.longitude, true);
@@ -170,57 +233,65 @@ function loadStationRecommendations() {
                     if (index === 0) {
                         pinColor = '#10b981';
                         isFastest = true;
-                        zIndex = 1000; 
+                        zIndex = 1000;
                     } else if (index === data.stations.length - 1) {
                         pinColor = '#ef4444';
                         zIndex = 200;
                     }
 
-                    let marker = L.marker([st.latitude, st.longitude], { 
-                        icon: createMarkerIcon(pinColor, isFastest), 
-                        zIndexOffset: zIndex 
-                    }).bindPopup(`<b>${isFastest ? '🏆 FASTEST: ' : ''}${st.name}</b><br>${st.distance_km} km`)
+                    const marker = L.marker([st.latitude, st.longitude], {
+                        icon: createMarkerIcon(pinColor, isFastest),
+                        zIndexOffset: zIndex
+                    }).bindPopup(`<b>${isFastest ? '🏆 NEAREST: ' : ''}${st.name}</b><br>${st.distance_km} km`)
                       .addTo(routewiseMarkersGroup);
-                    
-                    marker.on('click', function() {
-                        drawRouteOnSideMap(st.name, st.address, st.latitude, st.longitude, false);
+
+                    marker.on('click', function () {
+                        drawRouteOnSideMap(st.name, st.address, st.latitude, st.longitude, isFastest);
                     });
-                    
+
                     mapBounds.push([st.latitude, st.longitude]);
                 });
 
                 routewiseMap.fitBounds(mapBounds, { padding: [50, 50] });
             } else {
-                document.getElementById('resultStationName').textContent = "No stations found";
-                document.getElementById('resultStationAddress').textContent = "";
+                setText('resultStationName', "No stations found nearby");
+                setText('resultStationAddress', "");
+                setText('routeDistance', "—");
+                setText('routeDuration', "—");
             }
         })
         .catch(err => {
+            if (myRequest !== stationRequestId) return;
             console.error("Loading error:", err);
-            document.getElementById('resultStationName').textContent = "Connection Error";
-            document.getElementById('resultStationAddress').textContent = "Could not fetch station data.";
+            setText('resultStationName', "Connection Error");
+            setText('resultStationAddress', "Could not fetch station data.");
+            setText('routeDistance', "—");
+            setText('routeDuration', "—");
         });
 }
 
 function drawRouteOnSideMap(name, address, lat, lon, isFastest) {
+    const myRoute = ++routeRequestId;
     const routeCard = document.getElementById('mapRouteCard');
     const badge = document.getElementById('routeBadge');
-    
-    document.getElementById('resultStationName').textContent = name;
-    document.getElementById('resultStationAddress').textContent = address || "";
-    document.getElementById('routeDistance').textContent = "Calc...";
-    document.getElementById('routeDuration').textContent = "--";
-    routeCard.style.display = 'block';
 
-    if (isFastest) {
-        badge.textContent = "🏆 FASTEST TRAFFIC ROUTE";
-        badge.style.color = "#10b981";
-    } else {
-        badge.textContent = "⚡ ALTERNATIVE ROUTE";
-        badge.style.color = "#f59e0b";
+    setText('resultStationName', name);
+    setText('resultStationAddress', address || "");
+    setText('routeDistance', "Calc...");
+    setText('routeDuration', "--");
+    if (routeCard) routeCard.style.display = 'block';
+
+    if (badge) {
+        if (isFastest) {
+            badge.textContent = "🏆 SHORTEST ROAD ROUTE";
+            badge.style.color = "#10b981";
+        } else {
+            badge.textContent = "⚡ ALTERNATIVE ROUTE";
+            badge.style.color = "#f59e0b";
+        }
     }
 
-    if (routewisePolyline) {
+    if (routewisePolyline && routewiseMap) {
         routewiseMap.removeLayer(routewisePolyline);
         routewisePolyline = null;
     }
@@ -228,38 +299,62 @@ function drawRouteOnSideMap(name, address, lat, lon, isFastest) {
     fetch(`/calculate-route?origin_lat=${userCoords.lat}&origin_lon=${userCoords.lon}&dest_lat=${lat}&dest_lon=${lon}`)
         .then(res => res.json())
         .then(routeData => {
-            if (routeData.success && routeData.points && routeData.points.length > 0) {
+            if (myRoute !== routeRequestId) return;   // naya click aa chuka hai
+
+            if (routeData.success && routeData.points && routeData.points.length > 0 && routewiseMap) {
                 const routePoints = routeData.points.map(p => [p.lat, p.lon]);
 
-                const timeText = routeData.traffic_delay_minutes > 0 
-                    ? `${routeData.travel_time_minutes} mins (+${routeData.traffic_delay_minutes}m traffic)` 
+                const timeText = routeData.traffic_delay_minutes > 0
+                    ? `${routeData.travel_time_minutes} mins (+${routeData.traffic_delay_minutes}m traffic)`
                     : `${routeData.travel_time_minutes} mins`;
 
-                document.getElementById('routeDistance').textContent = `${routeData.distance_km} km`;
-                document.getElementById('routeDuration').textContent = timeText;
+                setText('routeDistance', `${routeData.distance_km} km`);
+                setText('routeDuration', timeText);
 
+                if (routewisePolyline) routewiseMap.removeLayer(routewisePolyline);
                 routewisePolyline = L.polyline(routePoints, {
-                    color: '#38bdf8', 
-                    weight: 6, 
-                    opacity: 0.9, 
-                    lineCap: 'round', 
+                    color: '#38bdf8',
+                    weight: 6,
+                    opacity: 0.9,
+                    lineCap: 'round',
                     lineJoin: 'round'
                 }).addTo(routewiseMap);
-                
+
                 routewiseMap.fitBounds(routewisePolyline.getBounds(), { padding: [60, 60] });
+            } else {
+                setText('routeDistance', "N/A");
+                setText('routeDuration', "N/A");
             }
         })
-        .catch(err => console.error("Routing error:", err));
+        .catch(err => {
+            if (myRoute !== routeRequestId) return;
+            console.error("Routing error:", err);
+            setText('routeDistance', "N/A");
+            setText('routeDuration', "N/A");
+        });
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-    if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(
-            (pos) => { userCoords.lat = pos.coords.latitude; userCoords.lon = pos.coords.longitude; }
-        );
-    }
-    safeRangeKm = (appConfig.cppRouteData && appConfig.cppRouteData.safe_range) ? appConfig.cppRouteData.safe_range : 65;
+    safeRangeKm = (appConfig.cppRouteData && appConfig.cppRouteData.safe_range)
+        ? appConfig.cppRouteData.safe_range
+        : 65;
 
     const initialTab = document.body.getAttribute('data-active-tab') || 'vehicle';
     switchTab(initialTab);
+
+    if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+            (pos) => {
+                userCoords.lat = pos.coords.latitude;
+                userCoords.lon = pos.coords.longitude;
+                // Sirf tab reload karo jab user map tab par ho
+                if (routewiseMap && currentTab === 'location') {
+                    routewiseMap.setView([userCoords.lat, userCoords.lon], 13);
+                    loadStationRecommendations();
+                }
+            },
+            (err) => console.warn("Geolocation denied/failed, default location use ho rahi hai:", err.message),
+            { timeout: 8000 }
+        );
+    }
 });

@@ -1,9 +1,17 @@
+
+#define _USE_MATH_DEFINES
 #include <iostream>
+#include <iomanip>
 #include <string>
 #include <vector>
 #include <queue>
 #include <cmath>
+#include <functional>
 #include <unordered_map>
+
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
 
 using namespace std;
 
@@ -19,7 +27,7 @@ protected:
 
 public:
     Vehicle(double p, double c, double e) : currentPercent(p), maxCapacity(c), efficiency(e) {}
-    virtual double calculateSafeRange() = 0; 
+    virtual double calculateSafeRange() = 0;
     virtual ~Vehicle() {}
 };
 
@@ -69,8 +77,8 @@ struct Edge {
 
 struct AStarNode {
     int id;
-    double g_cost; 
-    double f_cost; 
+    double g_cost;
+    double f_cost;
 
     bool operator>(const AStarNode& other) const {
         return f_cost > other.f_cost;
@@ -78,14 +86,14 @@ struct AStarNode {
 };
 
 double calculateHaversine(double lat1, double lon1, double lat2, double lon2) {
-    double R = 6371.0; 
+    double R = 6371.0;
     double dLat = (lat2 - lat1) * M_PI / 180.0;
     double dLon = (lon2 - lon1) * M_PI / 180.0;
     lat1 = lat1 * M_PI / 180.0;
     lat2 = lat2 * M_PI / 180.0;
 
-    double a = sin(dLat/2) * sin(dLat/2) + sin(dLon/2) * sin(dLon/2) * cos(lat1) * cos(lat2);
-    double c = 2 * atan2(sqrt(a), sqrt(1-a));
+    double a = sin(dLat / 2) * sin(dLat / 2) + sin(dLon / 2) * sin(dLon / 2) * cos(lat1) * cos(lat2);
+    double c = 2 * atan2(sqrt(a), sqrt(1 - a));
     return R * c;
 }
 
@@ -93,15 +101,18 @@ vector<int> aStarSearch(int start, int goal, unordered_map<int, Node>& nodes, un
     priority_queue<AStarNode, vector<AStarNode>, greater<AStarNode>> minHeap;
     unordered_map<int, double> g_costs;
     unordered_map<int, int> parent;
-    
+
     g_costs[start] = 0.0;
     double initial_h = calculateHaversine(nodes[start].lat, nodes[start].lon, nodes[goal].lat, nodes[goal].lon);
     minHeap.push({start, 0.0, initial_h});
-    
+
     while (!minHeap.empty()) {
         AStarNode current = minHeap.top();
         minHeap.pop();
-        
+
+        // Purani (stale) heap entry skip karo
+        if (current.g_cost > g_costs[current.id]) continue;
+
         if (current.id == goal) {
             vector<int> path;
             int curr = goal;
@@ -110,25 +121,25 @@ vector<int> aStarSearch(int start, int goal, unordered_map<int, Node>& nodes, un
                 curr = parent[curr];
             }
             path.push_back(start);
-            return path; 
+            return path;
         }
-        
+
         for (const Edge& edge : graph[current.id]) {
             // TRAFFIC LOGIC: Distance * Traffic Multiplier = Effective Time Cost
             double effective_cost = edge.distance * edge.traffic_multiplier;
             double new_g_cost = g_costs[current.id] + effective_cost;
-            
+
             if (g_costs.find(edge.target_id) == g_costs.end() || new_g_cost < g_costs[edge.target_id]) {
                 g_costs[edge.target_id] = new_g_cost;
                 double h_cost = calculateHaversine(nodes[edge.target_id].lat, nodes[edge.target_id].lon, nodes[goal].lat, nodes[goal].lon);
                 double f_cost = new_g_cost + h_cost;
-                
+
                 parent[edge.target_id] = current.id;
                 minHeap.push({edge.target_id, new_g_cost, f_cost});
             }
         }
     }
-    return {}; 
+    return {};
 }
 
 // ============================================================
@@ -142,9 +153,15 @@ int main(int argc, char* argv[]) {
     }
 
     string type = argv[1];
-    double percent = stod(argv[2]);
-    double capacity = stod(argv[3]);
-    double efficiency = stod(argv[4]);
+    double percent, capacity, efficiency;
+    try {
+        percent = stod(argv[2]);
+        capacity = stod(argv[3]);
+        efficiency = stod(argv[4]);
+    } catch (const exception&) {
+        cerr << "Error: Invalid numeric arguments." << endl;
+        return 1;
+    }
     string connector = argv[5];
 
     Vehicle* myVehicle = nullptr;
@@ -161,6 +178,7 @@ int main(int argc, char* argv[]) {
     }
 
     double safeRange = myVehicle->calculateSafeRange();
+    cout << fixed << setprecision(2);
     cout << "Calculated Safe Usable Range: " << safeRange << " km" << endl;
 
     delete myVehicle;

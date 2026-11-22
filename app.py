@@ -2,22 +2,49 @@ import os
 import re
 import random
 import subprocess
+from concurrent.futures import ThreadPoolExecutor
+from math import radians, sin, cos, sqrt, atan2
 
 import requests
 from dotenv import load_dotenv
 from flask import Flask, jsonify, render_template, request
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-load_dotenv(os.path.join(BASE_DIR, ".env"))
+
+load_dotenv(os.path.join(BASE_DIR, "my.env"))
+load_dotenv(os.path.join(BASE_DIR, ".env"), override=True)
 
 app = Flask(__name__)
 
-HARDCODED_API_KEY = "KAPybFJvNpPrXre1o4F2dy7ywR0IYTtB"
-TOMTOM_API_KEY = os.getenv("TOMTOM_API_KEY") or HARDCODED_API_KEY
-TOMTOM_MAP_KEY = os.getenv("TOMTOM_MAP_KEY") or HARDCODED_API_KEY
+
+def _clean(val):
+    return (val or "").strip().strip('"').strip("'")
+
+
+def _load_api_key():
+    # Sirf known variable names use karo (random 16+ char value ko key nahi maanna)
+    for var_name in ("TOMTOM_API_KEY", "TOMTOM_MAP_KEY", "API_KEY", "TOMTOM_KEY", "KEY"):
+        val = _clean(os.getenv(var_name))
+        if val:
+            return val
+    return ""
+
+
+TOMTOM_API_KEY = _load_api_key()
+TOMTOM_MAP_KEY = _clean(os.getenv("TOMTOM_MAP_KEY")) or TOMTOM_API_KEY
 
 DEFAULT_LATITUDE = 30.3165
 DEFAULT_LONGITUDE = 78.0322
+
+BUFFER_FACTORS = {"EV": 0.80, "HYBRID": 0.85}  # baaki (PETROL/DIESEL) = 0.90, C++ ke same
+
+
+def _haversine_km(lat1, lon1, lat2, lon2):
+    r = 6371.0
+    dlat = radians(lat2 - lat1)
+    dlon = radians(lon2 - lon1)
+    a = sin(dlat / 2) ** 2 + cos(radians(lat1)) * cos(radians(lat2)) * sin(dlon / 2) ** 2
+    return r * 2 * atan2(sqrt(a), sqrt(1 - a))
 
 
 class CppEngineBridge:
@@ -45,6 +72,9 @@ class CppEngineBridge:
             if not os.path.isfile(self.exe_path):
                 raise FileNotFoundError("C++ binary not found.")
 
+            if os.name != "nt" and not os.access(self.exe_path, os.X_OK):
+                os.chmod(self.exe_path, 0o755)
+
             result = subprocess.run(
                 [self.exe_path, vehicle_type, str(percent), str(capacity), str(efficiency), str(connector)],
                 cwd=self.backend_dir,
@@ -61,11 +91,11 @@ class CppEngineBridge:
 
             if match:
                 return float(match.group(1)), output
-        except (OSError, subprocess.SubprocessError, FileNotFoundError):
-            # Cross-platform fallback if Windows Application Control (WinError 4551) blocks the .exe
+        except (OSError, subprocess.SubprocessError):
             pass
 
-        buffer_factor = 0.80 if vehicle_type == "EV" else 0.90
+        # Python fallback (C++ binary na mile to) - buffer C++ jaisa hi
+        buffer_factor = BUFFER_FACTORS.get(vehicle_type, 0.90)
         safe_range = round(((percent / 100.0) * capacity * efficiency) * buffer_factor, 2)
         fallback_output = f"Calculated Safe Usable Range: {safe_range} km"
         return safe_range, fallback_output
@@ -78,13 +108,34 @@ class CppEngineBridge:
             return None
 
 
-class TomTomService:
+class RoutingAndStationService:
     def __init__(self, api_key):
         self.api_key = api_key
         self.session = requests.Session()
+        self.session.headers.update({"User-Agent": "RouteWiseApp/1.0"})
 
-    def get_fuel_stations(self, latitude, longitude, radius_km=15):
-        url = "https://api.tomtom.com/search/2/poiSearch/fuel.json"
+    def get_stations(self, vehicle_type, latitude, longitude, radius_km=15):
+        stations = []
+        if self.api_key:
+            try:
+                if vehicle_type in ("PETROL", "DIESEL", "HYBRID"):
+                    stations.extend(self._tomtom_poi("fuel", "Fuel", latitude, longitude, radius_km))
+                if vehicle_type in ("EV", "HYBRID"):
+                    stations.extend(self._tomtom_poi("electric vehicle charging station", "EV Charging", latitude, longitude, radius_km))
+            except Exception:
+                stations = []
+
+        if not stations:
+            try:
+                stations = self._osm_overpass_stations(vehicle_type, latitude, longitude, radius_km)
+            except Exception:
+                stations = []
+
+        stations.sort(key=lambda s: _haversine_km(latitude, longitude, s["latitude"], s["longitude"]))
+        return stations
+
+    def _tomtom_poi(self, query, station_type, latitude, longitude, radius_km):
+        url = f"https://api.tomtom.com/search/2/poiSearch/{requests.utils.quote(query)}.json"
         response = self.session.get(
             url,
             params={
@@ -97,50 +148,77 @@ class TomTomService:
             },
             timeout=8
         )
+        if response.status_code in (401, 403):
+            self.api_key = ""   # key galat/expired: aage se TomTom skip, free OSM/OSRM use hoga
+            raise RuntimeError("TomTom API key invalid")
         response.raise_for_status()
 
-        return [
-            {
-                "name": item.get("poi", {}).get("name", "Unknown fuel station"),
-                "address": item.get("address", {}).get("freeformAddress", ""),
-                "latitude": item.get("position", {}).get("lat"),
-                "longitude": item.get("position", {}).get("lon"),
-                "station_type": "Fuel"
-            }
-            for item in response.json().get("results", [])
-        ]
+        results = []
+        for item in response.json().get("results", []):
+            pos = item.get("position", {})
+            if pos.get("lat") is not None and pos.get("lon") is not None:
+                results.append({
+                    "name": item.get("poi", {}).get("name", f"{station_type} Station"),
+                    "address": item.get("address", {}).get("freeformAddress", ""),
+                    "latitude": pos["lat"],
+                    "longitude": pos["lon"],
+                    "station_type": station_type
+                })
+        return results
 
-    def get_ev_stations(self, latitude, longitude, radius_km=15):
-        url = "https://api.tomtom.com/search/2/poiSearch/electric%20vehicle%20charging%20station.json"
-        response = self.session.get(
-            url,
-            params={
-                "key": self.api_key,
-                "lat": latitude,
-                "lon": longitude,
-                "radius": int(min(max(radius_km, 0.1), 50) * 1000),
-                "limit": 15,
-                "countrySet": "IN"
-            },
-            timeout=8
-        )
+    def _osm_overpass_stations(self, vehicle_type, latitude, longitude, radius_km):
+        radius_m = int(min(max(radius_km, 1), 25) * 1000)
+        filters = []
+        if vehicle_type in ("PETROL", "DIESEL", "HYBRID"):
+            filters.append(f'node["amenity"="fuel"](around:{radius_m},{latitude},{longitude});')
+            filters.append(f'way["amenity"="fuel"](around:{radius_m},{latitude},{longitude});')
+        if vehicle_type in ("EV", "HYBRID"):
+            filters.append(f'node["amenity"="charging_station"](around:{radius_m},{latitude},{longitude});')
+            filters.append(f'way["amenity"="charging_station"](around:{radius_m},{latitude},{longitude});')
+
+        if not filters:
+            return []
+
+        query = f"[out:json][timeout:10];({''.join(filters)});out center 15;"
+        response = self.session.post("https://overpass-api.de/api/interpreter", data={"data": query}, timeout=12)
         response.raise_for_status()
 
-        return [
-            {
-                "name": item.get("poi", {}).get("name", "Unknown charging station"),
-                "address": item.get("address", {}).get("freeformAddress", ""),
-                "latitude": item.get("position", {}).get("lat"),
-                "longitude": item.get("position", {}).get("lon"),
-                "station_type": "EV Charging"
-            }
-            for item in response.json().get("results", [])
-        ]
+        results = []
+        for el in response.json().get("elements", []):
+            tags = el.get("tags", {})
+            lat = el.get("lat") or el.get("center", {}).get("lat")
+            lon = el.get("lon") or el.get("center", {}).get("lon")
+            if lat is None or lon is None:
+                continue
 
-    def calculate_traffic_route(self, origin_lat, origin_lon, dest_lat, dest_lon):
+            amenity = tags.get("amenity", "")
+            default_name = "EV Charging Station" if amenity == "charging_station" else "Fuel Station"
+            name = tags.get("name") or tags.get("brand") or tags.get("operator") or default_name
+            addr_parts = [tags.get("addr:street"), tags.get("addr:suburb"), tags.get("addr:city")]
+            address = ", ".join([p for p in addr_parts if p]) or "Nearby Road Station"
+
+            results.append({
+                "name": name,
+                "address": address,
+                "latitude": float(lat),
+                "longitude": float(lon),
+                "station_type": "EV Charging" if amenity == "charging_station" else "Fuel"
+            })
+        return results
+
+    def calculate_route(self, origin_lat, origin_lon, dest_lat, dest_lon):
+        if self.api_key:
+            try:
+                route = self._tomtom_route(origin_lat, origin_lon, dest_lat, dest_lon)
+                if route:
+                    return route
+            except Exception:
+                pass
+        return self._osrm_route(origin_lat, origin_lon, dest_lat, dest_lon)
+
+    def _tomtom_route(self, origin_lat, origin_lon, dest_lat, dest_lon):
         locations = f"{origin_lat},{origin_lon}:{dest_lat},{dest_lon}"
         url = f"https://api.tomtom.com/routing/1/calculateRoute/{locations}/json"
-
         response = self.session.get(
             url,
             params={
@@ -152,6 +230,9 @@ class TomTomService:
             },
             timeout=10
         )
+        if response.status_code in (401, 403):
+            self.api_key = ""   # key galat/expired: aage se TomTom skip, free OSM/OSRM use hoga
+            raise RuntimeError("TomTom API key invalid")
         response.raise_for_status()
 
         routes = response.json().get("routes", [])
@@ -165,17 +246,58 @@ class TomTomService:
             for leg in route.get("legs", [])
             for p in leg.get("points", [])
         ]
-
         return {
             "distance_km": round(summary.get("lengthInMeters", 0) / 1000, 2),
-            "travel_time_minutes": round(summary.get("travelTimeInSeconds", 0) / 60),
+            "travel_time_minutes": max(1, round(summary.get("travelTimeInSeconds", 0) / 60)),
             "traffic_delay_minutes": round(summary.get("trafficDelayInSeconds", 0) / 60),
+            "points": points
+        }
+
+    def _osrm_route(self, origin_lat, origin_lon, dest_lat, dest_lon):
+        url = f"https://router.project-osrm.org/route/v1/driving/{origin_lon},{origin_lat};{dest_lon},{dest_lat}"
+        response = self.session.get(
+            url,
+            params={"overview": "full", "geometries": "geojson"},
+            timeout=10
+        )
+        response.raise_for_status()
+
+        routes = response.json().get("routes", [])
+        if not routes:
+            return None
+
+        route = routes[0]
+        coords = route.get("geometry", {}).get("coordinates", [])
+        points = [{"lat": c[1], "lon": c[0]} for c in coords]
+        return {
+            "distance_km": round(route.get("distance", 0) / 1000, 2),
+            "travel_time_minutes": max(1, round(route.get("duration", 0) / 60)),
+            "traffic_delay_minutes": 0,
             "points": points
         }
 
 
 cpp_engine = CppEngineBridge(os.path.join(BASE_DIR, "backend"))
-tomtom_service = TomTomService(TOMTOM_API_KEY)
+station_service = RoutingAndStationService(TOMTOM_API_KEY)
+
+
+def _evaluate_station(lat, lon, st):
+    """Route nikalo; fail ho to straight-line estimate se fallback (marker phir bhi dikhega)."""
+    try:
+        info = station_service.calculate_route(lat, lon, st["latitude"], st["longitude"])
+    except Exception:
+        info = None
+
+    if info:
+        st["distance_km"] = info["distance_km"]
+        st["travel_time_minutes"] = info["travel_time_minutes"]
+        st["traffic_delay_minutes"] = info["traffic_delay_minutes"]
+    else:
+        d = round(_haversine_km(lat, lon, st["latitude"], st["longitude"]) * 1.3, 2)
+        st["distance_km"] = d
+        st["travel_time_minutes"] = max(1, round(d / 30 * 60))
+        st["traffic_delay_minutes"] = 0
+    return st
 
 
 @app.route("/")
@@ -195,7 +317,6 @@ def index():
         data = request.form.to_dict()
         selected_vehicle = data.get("vehicle_type", "EV").strip().upper() or "EV"
 
-        # Auto-generate realistic telemetry values
         random_percent = random.randint(72, 92)
 
         if selected_vehicle in ("EV", "HYBRID"):
@@ -235,35 +356,24 @@ def index():
 
 @app.route("/station-recommendations")
 def station_recommendations():
-    vehicle_type = request.args.get("vehicle_type", "").strip().upper()
-    lat = float(request.args.get("lat") or DEFAULT_LATITUDE)
-    lon = float(request.args.get("lon") or DEFAULT_LONGITUDE)
+    vehicle_type = request.args.get("vehicle_type", "EV").strip().upper() or "EV"
 
     try:
-        stations = []
-        if vehicle_type in ("PETROL", "DIESEL", "HYBRID"):
-            stations.extend(tomtom_service.get_fuel_stations(lat, lon, radius_km=15))
+        lat = float(request.args.get("lat") or DEFAULT_LATITUDE)
+        lon = float(request.args.get("lon") or DEFAULT_LONGITUDE)
+        stations = station_service.get_stations(vehicle_type, lat, lon, radius_km=15)
 
-        if vehicle_type in ("EV", "HYBRID"):
-            stations.extend(tomtom_service.get_ev_stations(lat, lon, radius_km=15))
+        # Nearest 5 stations ke routes parallel me nikalo
+        with ThreadPoolExecutor(max_workers=5) as ex:
+            evaluated = list(ex.map(lambda s: _evaluate_station(lat, lon, s), stations[:5]))
 
-        evaluated_stations = []
-        for st in stations[:8]:
-            route_info = tomtom_service.calculate_traffic_route(lat, lon, st["latitude"], st["longitude"])
-            if route_info:
-                st["distance_km"] = route_info["distance_km"]
-                st["travel_time_minutes"] = route_info["travel_time_minutes"]
-                st["traffic_delay_minutes"] = route_info["traffic_delay_minutes"]
-                evaluated_stations.append(st)
-
-        evaluated_stations.sort(key=lambda s: (s["distance_km"], s["travel_time_minutes"]))
-        top_5 = evaluated_stations[:5]
+        evaluated.sort(key=lambda s: (s["distance_km"], s["travel_time_minutes"]))
 
         return jsonify({
             "success": True,
             "vehicle_type": vehicle_type,
-            "count": len(top_5),
-            "stations": top_5
+            "count": len(evaluated),
+            "stations": evaluated
         })
     except Exception as exc:
         return jsonify({"success": False, "message": str(exc), "stations": []}), 502
@@ -277,7 +387,7 @@ def calculate_route():
         dest_lat = float(request.args.get("dest_lat"))
         dest_lon = float(request.args.get("dest_lon"))
 
-        route_data = tomtom_service.calculate_traffic_route(origin_lat, origin_lon, dest_lat, dest_lon)
+        route_data = station_service.calculate_route(origin_lat, origin_lon, dest_lat, dest_lon)
         if not route_data:
             return jsonify({"success": False, "message": "No route found."}), 502
 

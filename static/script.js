@@ -3,13 +3,14 @@ let simulationInterval = null;
 let dashboardTimeout = null;
 let criticalWarningShown = false;   // 20% warning ek hi baar dikhe
 let energyReady = false;          // start battery % sirf ek baar set ho
-const DROP_INTERVAL_MS = 3000;    // har 3 second me 1% battery kam (chahe to badal lo)
+const DROP_INTERVAL_MS = 15000;   // har 15 second me 1% battery kam (zyada slow chahiye to number badha do)
 let safeRangeKm = 0;
 let userCoords = { lat: 30.3165, lon: 78.0322 };
 
 let routewiseMap = null;
 let routewiseMarkersGroup = null;
 let routewisePolyline = null;
+let routewisePreview = null;      // route aane tak dikhne wali dotted seedhi line
 
 let stationRequestId = 0;  
 let routeRequestId = 0;
@@ -247,10 +248,7 @@ function loadStationRecommendations() {
         routewiseMarkersGroup.clearLayers();
         addUserMarker();
     }
-    if (routewisePolyline) {
-        routewiseMap.removeLayer(routewisePolyline);
-        routewisePolyline = null;
-    }
+    clearRouteLines();
 
     fetch(`/station-recommendations?vehicle_type=${encodeURIComponent(vType)}&lat=${userCoords.lat}&lon=${userCoords.lon}`)
         .then(res => res.json())
@@ -263,7 +261,7 @@ function loadStationRecommendations() {
                 addUserMarker();
 
                 const fastest = data.stations[0];
-                drawRouteOnSideMap(fastest.name, fastest.address, fastest.latitude, fastest.longitude, true);
+                drawRouteOnSideMap(fastest.name, fastest.address, fastest.latitude, fastest.longitude, true, fastest);
 
                 data.stations.forEach((st, index) => {
                     let pinColor = '#f59e0b';
@@ -282,11 +280,11 @@ function loadStationRecommendations() {
                     const marker = L.marker([st.latitude, st.longitude], {
                         icon: createMarkerIcon(pinColor, isFastest),
                         zIndexOffset: zIndex
-                    }).bindPopup(`<b>${isFastest ? '🏆 NEAREST: ' : ''}${st.name}</b><br>${st.distance_km} km`)
+                    }).bindPopup(`<b>${isFastest ? '🏆 NEAREST: ' : ''}${st.name}</b><br>${st.route_source === 'estimate' ? '~' : ''}${st.distance_km} km`)
                       .addTo(routewiseMarkersGroup);
 
                     marker.on('click', function () {
-                        drawRouteOnSideMap(st.name, st.address, st.latitude, st.longitude, isFastest);
+                        drawRouteOnSideMap(st.name, st.address, st.latitude, st.longitude, isFastest, st);
                     });
 
                     mapBounds.push([st.latitude, st.longitude]);
@@ -310,15 +308,28 @@ function loadStationRecommendations() {
         });
 }
 
-function drawRouteOnSideMap(name, address, lat, lon, isFastest) {
+function clearRouteLines() {
+    if (routewiseMap && routewisePolyline) routewiseMap.removeLayer(routewisePolyline);
+    if (routewiseMap && routewisePreview) routewiseMap.removeLayer(routewisePreview);
+    routewisePolyline = null;
+    routewisePreview = null;
+}
+
+function drawRouteOnSideMap(name, address, lat, lon, isFastest, estimate) {
     const myRoute = ++routeRequestId;
     const routeCard = document.getElementById('mapRouteCard');
     const badge = document.getElementById('routeBadge');
 
     setText('resultStationName', name);
     setText('resultStationAddress', address || "");
-    setText('routeDistance', "Calc...");
-    setText('routeDuration', "--");
+    // Asli route aane tak andaza turant dikhao (~ matlab approximate)
+    if (estimate && estimate.distance_km) {
+        setText('routeDistance', `~${estimate.distance_km} km`);
+        setText('routeDuration', `~${estimate.travel_time_minutes} mins`);
+    } else {
+        setText('routeDistance', "Calc...");
+        setText('routeDuration', "Loading...");
+    }
     if (routeCard) routeCard.style.display = 'block';
 
     if (badge) {
@@ -331,9 +342,12 @@ function drawRouteOnSideMap(name, address, lat, lon, isFastest) {
         }
     }
 
-    if (routewisePolyline && routewiseMap) {
-        routewiseMap.removeLayer(routewisePolyline);
-        routewisePolyline = null;
+    clearRouteLines();
+    if (routewiseMap) {
+        // dotted seedhi line: road route aane tak
+        routewisePreview = L.polyline([[userCoords.lat, userCoords.lon], [lat, lon]], {
+            color: '#38bdf8', weight: 3, opacity: 0.6, dashArray: '8 10'
+        }).addTo(routewiseMap);
     }
 
     fetch(`/calculate-route?origin_lat=${userCoords.lat}&origin_lon=${userCoords.lon}&dest_lat=${lat}&dest_lon=${lon}`)
@@ -351,7 +365,7 @@ function drawRouteOnSideMap(name, address, lat, lon, isFastest) {
                 setText('routeDistance', `${routeData.distance_km} km`);
                 setText('routeDuration', timeText);
 
-                if (routewisePolyline) routewiseMap.removeLayer(routewisePolyline);
+                clearRouteLines();
                 routewisePolyline = L.polyline(routePoints, {
                     color: '#38bdf8',
                     weight: 6,
@@ -374,6 +388,13 @@ function drawRouteOnSideMap(name, address, lat, lon, isFastest) {
         });
 }
 
+// Page khulte hi background me stations + road graph taiyar karwao (map tab jaldi khule)
+function warmUp() {
+    const vType = appConfig.vehicleType || 'EV';
+    fetch(`/warmup?vehicle_type=${encodeURIComponent(vType)}&lat=${userCoords.lat}&lon=${userCoords.lon}`)
+        .catch(() => {});
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     safeRangeKm = (appConfig.cppRouteData && appConfig.cppRouteData.safe_range)
         ? appConfig.cppRouteData.safe_range
@@ -381,13 +402,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const initialTab = document.body.getAttribute('data-active-tab') || 'vehicle';
     switchTab(initialTab);
+    warmUp();                           // default location ke liye abhi se tayyari
 
     if (navigator.geolocation) {
         navigator.geolocation.getCurrentPosition(
             (pos) => {
                 userCoords.lat = pos.coords.latitude;
                 userCoords.lon = pos.coords.longitude;
-              
+                warmUp();                       // asli location ke liye tayyari
+                // Sirf tab reload karo jab user map tab par ho
                 if (routewiseMap && currentTab === 'location') {
                     routewiseMap.setView([userCoords.lat, userCoords.lon], 13);
                     loadStationRecommendations();

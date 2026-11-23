@@ -10,13 +10,21 @@ Steps:
 import heapq
 import math
 import os
+import pickle
 import subprocess
 import tempfile
+import threading
+import time
 from datetime import datetime
 
 import requests
 
-OVERPASS_URL = "https://overpass-api.de/api/interpreter"
+OVERPASS_URLS = [                    # pehla slow/busy ho to dusra try hota hai
+    "https://overpass-api.de/api/interpreter",
+    "https://overpass.kumi.systems/api/interpreter",
+]
+TILE = 0.02                          # graph ka area is grid par snap hota hai (chhota = tez download)
+CACHE_DAYS = 7                       # disk cache kitne din chale
 
 # Road type -> average speed (km/h). Jo type yahan nahi hai wo road ignore hogi.
 SPEEDS = {
@@ -30,11 +38,12 @@ BIG_ROADS = ("motorway", "trunk", "primary", "secondary",
              "motorway_link", "trunk_link", "primary_link", "secondary_link")
 RUSH_HOURS = (8, 9, 10, 17, 18, 19, 20)
 
-_saved_graph = None                 # last graph yaad rakho (baar-baar download na ho)
+_graphs = []                        # memory me bane graphs (max 3)
+_lock = threading.Lock()            # ek saath do download na chalein
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 ENGINE_PATH = os.path.join(BASE_DIR, "backend", "RouteWiseEngine.exe" if os.name == "nt" else "RouteWiseEngine")
-GRAPH_FILE = os.path.join(tempfile.gettempdir(), "routewise_graph.txt")   # C++ ko ye file milti hai
+CACHE_DIR = tempfile.gettempdir()    # graph files yahan save hoti hain (C++ ko bhi yahin se milti hain)
 
 
 # ---------------------------------------------------------------
@@ -95,31 +104,89 @@ def road_direction(tags, road_type):
 # graph["roads"] = {node_id: [(agla_node, km, road_type), ...]}
 # ---------------------------------------------------------------
 def get_graph(points):
-    """points = [(lat, lon), ...]. In sab ko cover karne wala graph do."""
-    global _saved_graph
+    """points = [(lat, lon), ...]. In sab ko cover karne wala graph do.
+    Pehle memory, phir disk cache, tab hi internet se download."""
+    with _lock:                                          # do request ek saath download na karein
+        for g in _graphs:
+            if inside(g["bbox"], points):
+                return g
 
-    # Pehle se bana graph kaam aa sakta hai?
-    if _saved_graph:
-        s, w, n, e = _saved_graph["bbox"]
-        if all(s < lat < n and w < lon < e for lat, lon in points):
-            return _saved_graph
+        bbox = make_bbox(points)
+        name = "routewise_" + "_".join(f"{v:.2f}" for v in bbox)
+        pkl_path = os.path.join(CACHE_DIR, name + ".pkl")
+        txt_path = os.path.join(CACHE_DIR, name + ".txt")
 
-    # Sab points ke around ka box (thoda extra jagah ke saath)
+        graph = load_cached_graph(pkl_path, txt_path)
+        if graph is None:
+            graph = download_graph(bbox)
+            graph["file"] = txt_path
+            t = time.time()
+            save_graph_file(graph)
+            with open(pkl_path, "wb") as f:
+                pickle.dump(graph, f)
+            print(f"[routing] graph files saved: {time.time() - t:.1f}s")
+
+        _graphs.append(graph)
+        del _graphs[:-3]
+        return graph
+
+
+def inside(bbox, points):
+    s, w, n, e = bbox
+    return all(s < lat < n and w < lon < e for lat, lon in points)
+
+
+def make_bbox(points):
+    """Points ke around ka area, TILE (0.02 degree) grid par snap kiya hua.
+    Isse thodi alag location par bhi wahi graph cache se mil jata hai."""
     lats = [p[0] for p in points]
     lons = [p[1] for p in points]
-    pad = 0.02
-    bbox = (min(lats) - pad, min(lons) - pad, max(lats) + pad, max(lons) + pad)
+    pad = 0.01
+    return (round(math.floor((min(lats) - pad) / TILE) * TILE, 2),
+            round(math.floor((min(lons) - pad) / TILE) * TILE, 2),
+            round(math.ceil((max(lats) + pad) / TILE) * TILE, 2),
+            round(math.ceil((max(lons) + pad) / TILE) * TILE, 2))
 
-    # Overpass se is box ki saari roads maango
+
+def load_cached_graph(pkl_path, txt_path):
+    """Disk par pehle se bana graph ho (aur purana na ho) to wahi use karo."""
+    try:
+        age_days = (time.time() - os.path.getmtime(pkl_path)) / 86400
+        if age_days > CACHE_DAYS or not os.path.isfile(txt_path):
+            return None
+        t = time.time()
+        with open(pkl_path, "rb") as f:
+            graph = pickle.load(f)
+        print(f"[routing] graph disk cache se mila: {time.time() - t:.1f}s")
+        return graph
+    except Exception:
+        return None
+
+
+def download_graph(bbox):
+    """Overpass se is area ki car roads lo aur graph banao."""
+    start_time = time.time()
     road_types = "|".join(SPEEDS)
+    # ways (tags ke saath) + unke nodes (sirf coordinates: chhota response)
     query = (f'[out:json][timeout:40];'
              f'way["highway"~"^({road_types})$"]({bbox[0]},{bbox[1]},{bbox[2]},{bbox[3]});'
-             f'(._;>;);out body;')
-    response = requests.post(OVERPASS_URL, data={"data": query}, timeout=60,
-                             headers={"User-Agent": "RouteWiseApp/1.0"})
-    response.raise_for_status()
-    data = response.json()
+             f'out body;>;out skel qt;')
 
+    data, last_error = None, None
+    for url in OVERPASS_URLS:
+        try:
+            response = requests.post(url, data={"data": query}, timeout=(5, 45),
+                                     headers={"User-Agent": "RouteWiseApp/1.0"})
+            response.raise_for_status()
+            data = response.json()
+            break
+        except Exception as exc:
+            last_error = exc
+    if data is None:
+        raise RuntimeError(f"Road data download fail: {last_error}")
+    print(f"[routing] download: {time.time() - start_time:.1f}s")
+
+    t = time.time()
     nodes = {}
     roads = {}
 
@@ -150,9 +217,16 @@ def get_graph(points):
 
     roads = keep_main_network(roads)
 
-    _saved_graph = {"bbox": bbox, "nodes": nodes, "roads": roads}
-    save_graph_file(_saved_graph)
-    return _saved_graph
+    # Sirf wahi nodes rakho jo roads me use hue (graph chhota = tez)
+    used = set(roads)
+    for edges in roads.values():
+        used.update(b for b, _, _ in edges)
+    nodes = {n: nodes[n] for n in used}
+    print(f"[routing] graph build: {time.time() - t:.1f}s  ({len(nodes)} nodes)")
+
+    if not roads:
+        raise ValueError("Is area me car roads ka data nahi mila.")
+    return {"bbox": bbox, "nodes": nodes, "roads": roads}
 
 
 def keep_main_network(roads):
@@ -189,16 +263,14 @@ def save_graph_file(graph):
     """Graph ko text file me likho taaki C++ padh sake.
     Format: N, phir N lines "id lat lon", phir M, phir M lines "from to km speed isBig"
     """
-    used = set()
+    used = set(graph["nodes"])
     edge_lines = []
     for a, edges in graph["roads"].items():
         for b, km, road_type in edges:
-            used.add(a)
-            used.add(b)
             big = 1 if road_type in BIG_ROADS else 0
             edge_lines.append(f"{a} {b} {km:.6f} {SPEEDS[road_type]} {big}")
 
-    with open(GRAPH_FILE, "w") as f:
+    with open(graph["file"], "w") as f:
         f.write(f"{len(used)}\n")
         for node_id in used:
             lat, lon = graph["nodes"][node_id]
@@ -274,19 +346,19 @@ def a_star(graph, start, goal, hour):
 def find_route(graph, o_lat, o_lon, d_lat, d_lon):
     if os.path.isfile(ENGINE_PATH):
         try:
-            return route_with_cpp(o_lat, o_lon, d_lat, d_lon)     # A* C++ me
+            return route_with_cpp(graph, o_lat, o_lon, d_lat, d_lon)  # A* C++ me
         except (OSError, subprocess.SubprocessError, ValueError):
             pass                                                   # C++ fail -> Python fallback
     return route_with_python(graph, o_lat, o_lon, d_lat, d_lon)
 
 
-def route_with_cpp(o_lat, o_lon, d_lat, d_lon):
+def route_with_cpp(graph, o_lat, o_lon, d_lat, d_lon):
     """C++ engine ko chalao: RouteWiseEngine ROUTE graph.txt o_lat o_lon d_lat d_lon hour"""
     if os.name != "nt" and not os.access(ENGINE_PATH, os.X_OK):
         os.chmod(ENGINE_PATH, 0o755)
 
     result = subprocess.run(
-        [ENGINE_PATH, "ROUTE", GRAPH_FILE, str(o_lat), str(o_lon), str(d_lat), str(d_lon),
+        [ENGINE_PATH, "ROUTE", graph["file"], str(o_lat), str(o_lon), str(d_lat), str(d_lon),
          str(datetime.now().hour)],
         capture_output=True, text=True, timeout=30, check=False)
 

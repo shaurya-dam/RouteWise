@@ -2,6 +2,8 @@ import os
 import re
 import random
 import subprocess
+import threading
+import time
 from math import radians, sin, cos, sqrt, atan2
 
 import requests
@@ -212,26 +214,27 @@ cpp_engine = CppEngineBridge(os.path.join(BASE_DIR, "backend"))
 station_service = RoutingAndStationService(TOMTOM_API_KEY)   # sirf station (POI) dhundne ke liye
 
 
-def _evaluate_station(graph, lat, lon, st):
-    """Apne A* se route nikalo; na mile to straight-line estimate."""
-    info = None
-    if graph is not None:
-        try:
-            info = routing.find_route(graph, lat, lon, st["latitude"], st["longitude"])
-        except Exception:
-            info = None
+_station_cache = {}   # (vehicle, lat, lon) -> (time, stations)  - baar-baar internet call na ho
 
-    if info:
-        st["distance_km"] = info["distance_km"]
-        st["travel_time_minutes"] = info["travel_time_minutes"]
-        st["traffic_delay_minutes"] = info["traffic_delay_minutes"]
-        st["route_source"] = "A*"
-    else:
-        d = round(_haversine_km(lat, lon, st["latitude"], st["longitude"]) * 1.3, 2)
-        st["distance_km"] = d
-        st["travel_time_minutes"] = max(1, round(d / 30 * 60))
-        st["traffic_delay_minutes"] = 0
-        st["route_source"] = "estimate"
+
+def _cached_stations(vehicle_type, lat, lon):
+    """Nearby stations (10 minute cache)."""
+    key = (vehicle_type, round(lat, 2), round(lon, 2))
+    cached = _station_cache.get(key)
+    if cached and time.time() - cached[0] < 600:
+        return [dict(s) for s in cached[1]]
+    stations = station_service.get_stations(vehicle_type, lat, lon, radius_km=15)[:5]
+    _station_cache[key] = (time.time(), stations)
+    return [dict(s) for s in stations]
+
+
+def _estimate_station(lat, lon, st):
+    """Turant dikhane ke liye straight-line andaza. Asli A* route marker par click/select hone par aata hai."""
+    d = round(_haversine_km(lat, lon, st["latitude"], st["longitude"]) * 1.3, 2)
+    st["distance_km"] = d
+    st["travel_time_minutes"] = max(1, round(d / 30 * 60))
+    st["traffic_delay_minutes"] = 0
+    st["route_source"] = "estimate"
     return st
 
 
@@ -291,33 +294,49 @@ def index():
 
 @app.route("/station-recommendations")
 def station_recommendations():
+    """Stations turant (bina route calculate kiye). Route alag se /calculate-route se aata hai."""
     vehicle_type = request.args.get("vehicle_type", "EV").strip().upper() or "EV"
 
     try:
         lat = float(request.args.get("lat") or DEFAULT_LATITUDE)
         lon = float(request.args.get("lon") or DEFAULT_LONGITUDE)
-        stations = station_service.get_stations(vehicle_type, lat, lon, radius_km=15)[:5]
-
-        # Ek hi road graph origin + saare stations ke liye, phir har station par A*
-        graph = None
-        if stations:
-            points = [(lat, lon)] + [(s["latitude"], s["longitude"]) for s in stations]
-            try:
-                graph = routing.get_graph(points)
-            except Exception:
-                graph = None
-
-        evaluated = [_evaluate_station(graph, lat, lon, s) for s in stations]
-        evaluated.sort(key=lambda s: (s["distance_km"], s["travel_time_minutes"]))
+        stations = [_estimate_station(lat, lon, s) for s in _cached_stations(vehicle_type, lat, lon)]
+        stations.sort(key=lambda s: (s["distance_km"], s["travel_time_minutes"]))
 
         return jsonify({
             "success": True,
             "vehicle_type": vehicle_type,
-            "count": len(evaluated),
-            "stations": evaluated
+            "count": len(stations),
+            "stations": stations
         })
     except Exception as exc:
         return jsonify({"success": False, "message": str(exc), "stations": []}), 502
+
+
+@app.route("/warmup")
+def warmup():
+    """Page khulte hi background me stations + road graph taiyar karo, taaki map tab turant khule."""
+    try:
+        lat = float(request.args.get("lat"))
+        lon = float(request.args.get("lon"))
+    except (TypeError, ValueError):
+        return jsonify({"started": False}), 400
+    vehicle_type = request.args.get("vehicle_type", "EV").strip().upper() or "EV"
+
+    def work():
+        # 1) stations  2) sabse paas wale station tak ka (chhota) road graph
+        try:
+            stations = [_estimate_station(lat, lon, s) for s in _cached_stations(vehicle_type, lat, lon)]
+            stations.sort(key=lambda s: (s["distance_km"], s["travel_time_minutes"]))
+            points = [(lat, lon)]
+            if stations:
+                points.append((stations[0]["latitude"], stations[0]["longitude"]))
+            routing.get_graph(points)
+        except Exception:
+            pass
+
+    threading.Thread(target=work, daemon=True).start()
+    return jsonify({"started": True})
 
 
 @app.route("/calculate-route", methods=["GET"])

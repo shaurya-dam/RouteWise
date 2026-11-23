@@ -119,18 +119,14 @@ class RoutingAndStationService:
         stations = []
         if self.api_key:
             try:
-                if vehicle_type in ("PETROL", "DIESEL", "HYBRID"):
+                if vehicle_type in ("PETROL", "HYBRID"):
                     stations.extend(self._tomtom_poi("fuel", "Fuel", latitude, longitude, radius_km))
                 if vehicle_type in ("EV", "HYBRID"):
                     stations.extend(self._tomtom_poi("electric vehicle charging station", "EV Charging", latitude, longitude, radius_km))
-            except Exception:
+            except Exception as e:
+                print("TomTom station search failed: ",e)
                 stations = []
 
-        if not stations:
-            try:
-                stations = self._osm_overpass_stations(vehicle_type, latitude, longitude, radius_km)
-            except Exception:
-                stations = []
 
         stations.sort(key=lambda s: _haversine_km(latitude, longitude, s["latitude"], s["longitude"]))
         return stations
@@ -150,7 +146,7 @@ class RoutingAndStationService:
             timeout=8
         )
         if response.status_code in (401, 403):
-            self.api_key = ""   # key galat/expired: aage se TomTom skip, free OSM/OSRM use hoga
+            self.api_key = ""    # Invalid key: skip future TomTom requests
             raise RuntimeError("TomTom API key invalid")
         response.raise_for_status()
 
@@ -167,46 +163,7 @@ class RoutingAndStationService:
                 })
         return results
 
-    def _osm_overpass_stations(self, vehicle_type, latitude, longitude, radius_km):
-        radius_m = int(min(max(radius_km, 1), 25) * 1000)
-        filters = []
-        if vehicle_type in ("PETROL", "DIESEL", "HYBRID"):
-            filters.append(f'node["amenity"="fuel"](around:{radius_m},{latitude},{longitude});')
-            filters.append(f'way["amenity"="fuel"](around:{radius_m},{latitude},{longitude});')
-        if vehicle_type in ("EV", "HYBRID"):
-            filters.append(f'node["amenity"="charging_station"](around:{radius_m},{latitude},{longitude});')
-            filters.append(f'way["amenity"="charging_station"](around:{radius_m},{latitude},{longitude});')
-
-        if not filters:
-            return []
-
-        query = f"[out:json][timeout:10];({''.join(filters)});out center 15;"
-        response = self.session.post("https://overpass-api.de/api/interpreter", data={"data": query}, timeout=12)
-        response.raise_for_status()
-
-        results = []
-        for el in response.json().get("elements", []):
-            tags = el.get("tags", {})
-            lat = el.get("lat") or el.get("center", {}).get("lat")
-            lon = el.get("lon") or el.get("center", {}).get("lon")
-            if lat is None or lon is None:
-                continue
-
-            amenity = tags.get("amenity", "")
-            default_name = "EV Charging Station" if amenity == "charging_station" else "Fuel Station"
-            name = tags.get("name") or tags.get("brand") or tags.get("operator") or default_name
-            addr_parts = [tags.get("addr:street"), tags.get("addr:suburb"), tags.get("addr:city")]
-            address = ", ".join([p for p in addr_parts if p]) or "Nearby Road Station"
-
-            results.append({
-                "name": name,
-                "address": address,
-                "latitude": float(lat),
-                "longitude": float(lon),
-                "station_type": "EV Charging" if amenity == "charging_station" else "Fuel"
-            })
-        return results
-
+    
 
 cpp_engine = CppEngineBridge(os.path.join(BASE_DIR, "backend"))
 station_service = RoutingAndStationService(TOMTOM_API_KEY)   # sirf station (POI) dhundne ke liye

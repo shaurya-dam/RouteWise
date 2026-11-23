@@ -11,7 +11,7 @@ let routewiseMap = null;
 let routewiseMarkersGroup = null;
 let routewisePolyline = null;
 
-let stationRequestId = 0;   // purani/duplicate requests ignore karne ke liye
+let stationRequestId = 0;  
 let routeRequestId = 0;
 let currentTab = 'vehicle';
 
@@ -25,7 +25,7 @@ function setText(id, text) {
 function switchTab(tabName) {
     currentTab = tabName;
 
-    // Purane timers band karo
+    
     if (dashboardTimeout) { clearTimeout(dashboardTimeout); dashboardTimeout = null; }
 
     document.querySelectorAll('.tab-content').forEach(tab => { tab.classList.add('hidden'); });
@@ -50,7 +50,7 @@ function switchTab(tabName) {
         initEnergy();
         updateEnergyDisplays(currentEnergyPercent);
         startEnergySimulation();
-        // Tab ab visible hai, isliye thoda ruk ke map banao taaki size sahi mile
+       
         setTimeout(() => {
             if (!routewiseMap) initLeafletMap();
             if (routewiseMap) routewiseMap.invalidateSize();
@@ -102,7 +102,7 @@ function updateEnergyDisplays(percent) {
             energyState.textContent = 'Low Energy Margin';
             energyState.className = 'sim-state low';
         } else {
-            energyState.textContent = 'Telemetry Active • Normal Operation';
+            energyState.textContent = 'Normal';
             energyState.className = 'sim-state';
         }
     }
@@ -133,13 +133,13 @@ function checkCriticalWarning(percent) {
     if (!modal) return;
 
     if (percent <= 20) {
-        setText('modalEnergyVal', `${percent}%`);      // popup khula ho to live update
+        setText('modalEnergyVal', `${percent}%`);     
         if (!criticalWarningShown) {
             criticalWarningShown = true;
             modal.classList.remove('hidden');
         }
     } else {
-        criticalWarningShown = false;                   // battery wapas badhi to dobara warning chalegi
+        criticalWarningShown = false;                 
         modal.classList.add('hidden');
     }
 }
@@ -155,7 +155,7 @@ function goToStations() {
 }
 
 function initEnergy() {
-    // Pehli baar server se aaya battery % lo; baad me current % hi chalta rahe
+   
     if (energyReady) return;
     const start = appConfig.cppRouteData && appConfig.cppRouteData.battery_percent;
     if (start) currentEnergyPercent = start;
@@ -163,7 +163,7 @@ function initEnergy() {
 }
 
 function startEnergySimulation() {
-    if (simulationInterval) return;      // pehle se chal raha hai to dobara start mat karo
+    if (simulationInterval) return;    
     simulationInterval = setInterval(() => {
         if (currentEnergyPercent > 5) {
             updateEnergyDisplays(currentEnergyPercent - 1);
@@ -185,14 +185,13 @@ function initLeafletMap() {
 
     routewiseMap = L.map('sideMap', { zoomControl: true }).setView([userCoords.lat, userCoords.lon], 13);
 
-    // OpenStreetMap tiles (free, API key nahi chahiye). Dark look CSS filter (.dark-tiles) se aata hai.
     const tiles = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
         maxZoom: 19,
         className: 'dark-tiles'
     }).addTo(routewiseMap);
 
-    // Agar OSM tiles fail hon to Esri (bhi free, key-less) par fallback
+    
     let tileErrors = 0;
     tiles.on('tileerror', () => {
         tileErrors++;
@@ -256,8 +255,7 @@ function loadStationRecommendations() {
     fetch(`/station-recommendations?vehicle_type=${encodeURIComponent(vType)}&lat=${userCoords.lat}&lon=${userCoords.lon}`)
         .then(res => res.json())
         .then(data => {
-            if (myRequest !== stationRequestId) return;   // purani request ignore
-
+            if (myRequest !== stationRequestId) return;   
             if (data.success && data.stations && data.stations.length > 0 && routewiseMarkersGroup) {
                 routewiseMarkersGroup.clearLayers();
                 const mapBounds = [[userCoords.lat, userCoords.lon]];
@@ -341,7 +339,7 @@ function drawRouteOnSideMap(name, address, lat, lon, isFastest) {
     fetch(`/calculate-route?origin_lat=${userCoords.lat}&origin_lon=${userCoords.lon}&dest_lat=${lat}&dest_lon=${lon}`)
         .then(res => res.json())
         .then(routeData => {
-            if (myRoute !== routeRequestId) return;   // naya click aa chuka hai
+            if (myRoute !== routeRequestId) return;   
 
             if (routeData.success && routeData.points && routeData.points.length > 0 && routewiseMap) {
                 const routePoints = routeData.points.map(p => [p.lat, p.lon]);
@@ -389,7 +387,7 @@ document.addEventListener('DOMContentLoaded', () => {
             (pos) => {
                 userCoords.lat = pos.coords.latitude;
                 userCoords.lon = pos.coords.longitude;
-                // Sirf tab reload karo jab user map tab par ho
+              
                 if (routewiseMap && currentTab === 'location') {
                     routewiseMap.setView([userCoords.lat, userCoords.lon], 13);
                     loadStationRecommendations();
